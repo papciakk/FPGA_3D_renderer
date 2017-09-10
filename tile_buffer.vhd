@@ -3,7 +3,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.common.all;
 
-entity single_port_ram is
+entity tile_buffer is
 
 	port(
 		clk  : in  std_logic;
@@ -16,7 +16,7 @@ entity single_port_ram is
 
 end entity;
 
-architecture rtl of single_port_ram is
+architecture rtl of tile_buffer is
 
 	signal buf : color_buffer_t;
 

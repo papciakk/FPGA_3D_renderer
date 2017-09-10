@@ -11,8 +11,15 @@ package common is
 		r : std_logic_vector(7 downto 0);
     	g : std_logic_vector(7 downto 0);
     	b : std_logic_vector(7 downto 0);
-  	end record color_t;  
+  	end record;  
   	
   	type color_buffer_t is array (0 to TILE_RES_X, 0 to TILE_RES_Y) of color_t;
+  	
+  	type rect_t is record
+  		x0 : unsigned(15 downto 0);
+  		x1 : unsigned(15 downto 0);
+  		y0 : unsigned(15 downto 0);
+  		y1 : unsigned(15 downto 0);
+  	end record;
 	
 end package common;

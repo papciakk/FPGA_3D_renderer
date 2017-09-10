@@ -221,7 +221,6 @@ set_global_assignment -name USE_SIGNALTAP_FILE output_files/stp2.stp
 set_location_assignment PIN_133 -to VGA1_WR_n
 set_location_assignment PIN_128 -to VGA1_RD_n
 set_global_assignment -name NUM_PARALLEL_PROCESSORS ALL
-set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
 set_global_assignment -name VHDL_FILE tile_buffer.vhd
 set_global_assignment -name VHDL_FILE pll.vhd
 set_global_assignment -name VHDL_FILE common.vhd
@@ -230,3 +229,5 @@ set_global_assignment -name VHDL_FILE fb_types.vhd
 set_global_assignment -name VHDL_FILE fb_lo_level_driver.vhd
 set_global_assignment -name VHDL_FILE fb_initializer.vhd
 set_global_assignment -name VHDL_FILE fb_display.vhd
+set_global_assignment -name VHDL_FILE tile_renderer.vhd
+set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
