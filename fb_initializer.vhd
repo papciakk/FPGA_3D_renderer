@@ -115,6 +115,9 @@ architecture RTL of fb_initializer is
 		(op_wr_dat, X"00"),             -- SP
 		(op_wr_dat, X"01"),             -- EP = 480 - 1 = 479
 		(op_wr_dat, X"DF"),             -- EP
+		
+		            
+		
 
 		---------------------------------------------------------
 
@@ -124,10 +127,17 @@ architecture RTL of fb_initializer is
 
 		---------------------------------------------------------
 
-		(op_wr_cmd, X"35"),             -- set_tear_on
-		(op_wr_dat, X"00"),             -- v-blanking only
+		--(op_wr_cmd, X"35"),             -- set_tear_on
+		--(op_wr_dat, X"00"),             -- v-blanking only
 		
 		---------------------------------------------------------
+		
+		(op_wr_cmd, X"B8"),             
+		(op_wr_dat, "00001111"),             
+		(op_wr_dat, "00000001"),            
+		
+		(op_wr_cmd, X"BA"),             
+		(op_wr_dat, "00000010"), 
 
 		(op_wr_cmd, X"2C")              -- write_memory_start
 	);

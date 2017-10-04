@@ -93,6 +93,9 @@ architecture behavioral of snf0 is
 	signal fb_disp_write_done  : std_logic;
 
 begin
+	
+	
+	
 	pll0 : entity work.pll
 		port map(
 			areset => not rst,
@@ -133,9 +136,9 @@ begin
 	fb_display0 : entity work.fb_display
 		port map(
 			fb_window     => (x0 => to_unsigned(0, 16), 
-									x1 => to_unsigned(640, 16), 
+									x1 => to_unsigned(639, 16), 
 									y0 => to_unsigned(0, 16), 
-									y1 => to_unsigned(480, 16)),
+									y1 => to_unsigned(479, 16)),
 			clk           => fb_disp_clk,
 			rst           => rst,
 			start_write   => fb_disp_start_write,
@@ -149,6 +152,8 @@ begin
 		);
 
 	LED <= "111";
+	GPIO(0) <= fb_disp_clk;
+	GPIO(1) <= fb_clk;
 
 	fb_clk        <= fb_initializer_clk when fb_initializer_enabled = '1' else fb_disp_clk;
 	fb_data_write <= fb_initializer_data_write when fb_initializer_enabled = '1' else fb_disp_data_write;
@@ -195,7 +200,7 @@ begin
 					end if;
 
 				when st_end =>
-					state <= st_end;
+					state <= st_disp_write;
 			end case;
 		end if;
 	end process;

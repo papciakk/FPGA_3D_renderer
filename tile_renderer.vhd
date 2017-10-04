@@ -14,21 +14,19 @@ architecture RTL of tile_renderer is
 	type state_type is (st_start, st_clear, st_idle);
 	signal state : state_type := st_start;
 
+	signal tilebuf_addr			: natural range 0 to 2**16;
 	signal tilebuf_x            : unsigned(7 downto 0);
 	signal tilebuf_y            : unsigned(7 downto 0);
-	signal tilebuf_data_in      : color_t;
 	signal tilebuf_data_out     : color_t;
-	signal tilebuf_write_enable : std_logic := '0';
 
 begin
+	
+	tilebuf_addr <= to_integer(tilebuf_y * TILE_RES_X + tilebuf_x);
 
 	tile_buffer_0 : entity work.tile_buffer
 		port map(
+			addr => tilebuf_addr,
 			clk  => clk,
-			x    => tilebuf_x,
-			y    => tilebuf_y,
-			data => tilebuf_data_in,
-			we   => tilebuf_write_enable,
 			q    => tilebuf_data_out
 		);
 
@@ -41,8 +39,6 @@ begin
 				when st_start =>
 					tilebuf_x            <= (others => '0');
 					tilebuf_y            <= (others => '0');
-					tilebuf_data_in      <= (others => X"00");
-					tilebuf_write_enable <= '0';
 					state                <= st_clear;
 					
 				when st_clear =>
@@ -54,9 +50,7 @@ begin
 						else 
 							tilebuf_x <= (others => '0');
 						end if;
-						
-						tilebuf_data_in <= (r => X"8A", g => X"07", b => X"07");
-						tilebuf_write_enable <= '1';
+
 					
 					else
 						state <= st_idle;

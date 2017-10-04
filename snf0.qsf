@@ -41,7 +41,7 @@ set_global_assignment -name DEVICE EP3C40Q240C8
 set_global_assignment -name TOP_LEVEL_ENTITY snf0
 set_global_assignment -name ORIGINAL_QUARTUS_VERSION "13.0 SP1"
 set_global_assignment -name PROJECT_CREATION_TIME_DATE "20:15:46  OCTOBER 05, 2016"
-set_global_assignment -name LAST_QUARTUS_VERSION 13.1
+set_global_assignment -name LAST_QUARTUS_VERSION "11.0 SP1"
 set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
 set_global_assignment -name MIN_CORE_JUNCTION_TEMP 0
 set_global_assignment -name MAX_CORE_JUNCTION_TEMP 85
@@ -187,7 +187,7 @@ set_global_assignment -name OUTPUT_IO_TIMING_FAR_END_VMEAS "HALF SIGNAL SWING" -
 set_global_assignment -name OUTPUT_IO_TIMING_FAR_END_VMEAS "HALF SIGNAL SWING" -fall
 set_global_assignment -name OPTIMIZE_HOLD_TIMING "ALL PATHS"
 set_global_assignment -name OPTIMIZE_MULTI_CORNER_TIMING ON
-set_global_assignment -name FITTER_EFFORT "AUTO FIT"
+set_global_assignment -name FITTER_EFFORT "FAST FIT"
 set_global_assignment -name SEED 44444
 set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
 set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
@@ -217,10 +217,11 @@ set_global_assignment -name ALLOW_ANY_ROM_SIZE_FOR_RECOGNITION OFF
 set_global_assignment -name STRICT_RAM_RECOGNITION OFF
 set_global_assignment -name USE_LOGICLOCK_CONSTRAINTS_IN_BALANCING ON
 set_global_assignment -name ENABLE_SIGNALTAP OFF
-set_global_assignment -name USE_SIGNALTAP_FILE output_files/stp2.stp
+set_global_assignment -name USE_SIGNALTAP_FILE stp2.stp
 set_location_assignment PIN_133 -to VGA1_WR_n
 set_location_assignment PIN_128 -to VGA1_RD_n
 set_global_assignment -name NUM_PARALLEL_PROCESSORS ALL
+set_global_assignment -name VHDL_FILE img_rom.vhd
 set_global_assignment -name VHDL_FILE tile_buffer.vhd
 set_global_assignment -name VHDL_FILE pll.vhd
 set_global_assignment -name VHDL_FILE common.vhd
@@ -230,4 +231,8 @@ set_global_assignment -name VHDL_FILE fb_lo_level_driver.vhd
 set_global_assignment -name VHDL_FILE fb_initializer.vhd
 set_global_assignment -name VHDL_FILE fb_display.vhd
 set_global_assignment -name VHDL_FILE tile_renderer.vhd
+set_global_assignment -name QIP_FILE pll.qip
+set_global_assignment -name MIF_FILE output_files/test.mif
+set_global_assignment -name QIP_FILE img_rom.qip
+set_global_assignment -name QIP_FILE sfl.qip
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
