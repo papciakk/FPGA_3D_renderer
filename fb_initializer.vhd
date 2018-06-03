@@ -116,9 +116,6 @@ architecture RTL of fb_initializer is
 		(op_wr_dat, X"01"),             -- EP = 480 - 1 = 479
 		(op_wr_dat, X"DF"),             -- EP
 		
-		            
-		
-
 		---------------------------------------------------------
 
 		(op_wr_cmd, X"13"),             -- enter_normal_mode

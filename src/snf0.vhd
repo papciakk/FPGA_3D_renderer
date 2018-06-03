@@ -2,6 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.fb_types.all;
+use work.common.all;
 
 entity snf0 is
 	port(
@@ -53,7 +54,9 @@ architecture behavioral of snf0 is
 		st_fb_init, st_fb_init_wait,
 		st_disp_write,
 		st_disp_wait,
-		st_end
+		st_end,
+		st_disp_clear, 
+		st_disp_clear_wait
 	);
 	signal state : fsm_state_type := st_start;
 
@@ -82,6 +85,9 @@ architecture behavioral of snf0 is
 	signal fb_disp_op_start   : std_logic;
 	signal fb_disp_op         : fb_lo_level_op_type;
 
+	signal fb_disp_clear       : std_logic := '0';
+	signal fb_disp_clear_color : color_t   := (others => X"00");
+
 	----------------------------------------
 
 	signal fb_data_read : std_logic_vector(7 downto 0);
@@ -91,11 +97,10 @@ architecture behavioral of snf0 is
 
 	signal fb_disp_start_write : std_logic := '0';
 	signal fb_disp_write_done  : std_logic;
+	signal fb_disp_window_rect : rect_t := FULLSCREEN_RECT;
 
 begin
-	
-	
-	
+
 	pll0 : entity work.pll
 		port map(
 			areset => not rst,
@@ -135,14 +140,13 @@ begin
 
 	fb_display0 : entity work.fb_display
 		port map(
-			fb_window     => (x0 => to_unsigned(0, 16), 
-									x1 => to_unsigned(639, 16), 
-									y0 => to_unsigned(0, 16), 
-									y1 => to_unsigned(479, 16)),
+			fb_window     => fb_disp_window_rect,
 			clk           => fb_disp_clk,
 			rst           => rst,
 			start_write   => fb_disp_start_write,
 			write_done    => fb_disp_write_done,
+			do_clear      => fb_disp_clear,
+			clear_color   => fb_disp_clear_color,
 			fb_data_write => fb_disp_data_write,
 			fb_op_start   => fb_disp_op_start,
 			fb_op         => fb_disp_op,
@@ -151,7 +155,7 @@ begin
 			fb_color_b    => VGA1_B
 		);
 
-	LED <= "111";
+	LED     <= "111";
 	GPIO(0) <= fb_disp_clk;
 	GPIO(1) <= fb_clk;
 
@@ -173,6 +177,8 @@ begin
 					fb_disp_start_write    <= '0';
 					state                  <= st_fb_init;
 
+				-- INIT SCREEN
+
 				when st_fb_init =>
 					fb_init_start <= '1';
 					state         <= st_fb_init_wait;
@@ -181,14 +187,37 @@ begin
 					fb_init_start <= '0';
 					if fb_init_done = '1' then
 						fb_initializer_enabled <= '0';
-						state                  <= st_disp_write;
+						state                  <= st_disp_clear;
 					else
 						state <= st_fb_init_wait;
 					end if;
 
-				when st_disp_write =>
+				-- CLEAR SCREEN
+
+				when st_disp_clear =>
+					fb_disp_start_write <= '1';
+					fb_disp_clear       <= '1';
+					fb_disp_clear_color <= (r => X"FF", g => X"00", b => X"00");
+					fb_disp_window_rect <= FULLSCREEN_RECT;
+					state               <= st_disp_clear_wait;
+
+				when st_disp_clear_wait =>
+					fb_disp_start_write <= '0';
+					fb_disp_clear       <= '0';
+
+					if fb_disp_write_done = '1' then
+						state <= st_disp_write;
+					else
+						state <= st_disp_clear_wait;
+					end if;
+
+				-- DISPLAY IMAGE
+
+			when st_disp_write =>
+					fb_disp_clear       <= '0';
 					fb_disp_start_write <= '1';
 					state               <= st_disp_wait;
+					fb_disp_window_rect <= ZERO_TILE_RECT;
 
 				when st_disp_wait =>
 					fb_disp_start_write <= '0';
@@ -198,6 +227,8 @@ begin
 					else
 						state <= st_disp_wait;
 					end if;
+
+				-- END
 
 				when st_end =>
 					state <= st_disp_write;
