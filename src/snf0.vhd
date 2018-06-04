@@ -62,7 +62,7 @@ architecture behavioral of snf0 is
 
 	----------------------------------------
 
-	signal rst : std_logic             := '1';
+	signal rst : std_logic;
 	signal cnt : unsigned(31 downto 0) := (others => '0');
 
 	----------------------------------------
@@ -85,8 +85,20 @@ architecture behavioral of snf0 is
 	signal fb_disp_op_start   : std_logic;
 	signal fb_disp_op         : fb_lo_level_op_type;
 
+	-- framebuffer display clear signals
 	signal fb_disp_clear       : std_logic := '0';
 	signal fb_disp_clear_color : color_t   := (others => X"00");
+	
+	-- framebuffer display write control
+	signal fb_disp_start_write : std_logic := '0';
+	signal fb_disp_write_done  : std_logic;
+	
+	-- framebuffer display out position, color input and window
+	signal fb_disp_posx_out : unsigned(16 downto 0);
+	signal fb_disp_posy_out : unsigned(16 downto 0);
+	signal fb_disp_color_in : color_t;
+	signal fb_disp_window_rect : rect_t := FULLSCREEN_RECT;
+	----------------------
 
 	----------------------------------------
 
@@ -94,10 +106,6 @@ architecture behavioral of snf0 is
 
 	signal fb_init_start : std_logic := '0';
 	signal fb_init_done  : std_logic;
-
-	signal fb_disp_start_write : std_logic := '0';
-	signal fb_disp_write_done  : std_logic;
-	signal fb_disp_window_rect : rect_t := FULLSCREEN_RECT;
 
 begin
 
@@ -140,6 +148,9 @@ begin
 
 	fb_display0 : entity work.fb_display
 		port map(
+			posx_out	  => fb_disp_posx_out,
+			posy_out	  => fb_disp_posy_out,
+			color_in	  => fb_disp_color_in,
 			fb_window     => fb_disp_window_rect,
 			clk           => fb_disp_clk,
 			rst           => rst,
@@ -154,10 +165,25 @@ begin
 			fb_color_g    => VGA1_G,
 			fb_color_b    => VGA1_B
 		);
+		
+	led_blinker0 : entity work.led_blinker
+		generic map(
+			frequency => 5 -- Hz
+		)
+		port map(
+			clk50 => CLK_50,
+			rst   => not rst,
+			led   => LED(1)
+		);
 
-	LED     <= "111";
-	GPIO(0) <= fb_disp_clk;
-	GPIO(1) <= fb_clk;
+	LED(0) <= rst;
+	LED(2) <= '0';
+	
+	rst <= BTN(0);
+	
+	
+	--GPIO(0) <= fb_disp_clk;
+	--GPIO(1) <= fb_clk;
 
 	fb_clk        <= fb_initializer_clk when fb_initializer_enabled = '1' else fb_disp_clk;
 	fb_data_write <= fb_initializer_data_write when fb_initializer_enabled = '1' else fb_disp_data_write;
@@ -167,17 +193,15 @@ begin
 	process(fb_initializer_clk, rst) is
 	begin
 		if rst = '0' then
-			rst   <= '1';
 			state <= st_start;
 		elsif rising_edge(fb_initializer_clk) then
 			case state is
 				when st_start =>
-					rst                    <= '1';
 					fb_initializer_enabled <= '1';
 					fb_disp_start_write    <= '0';
 					state                  <= st_fb_init;
 
-				-- INIT SCREEN
+				-- INIT FRAMEBUFFER
 
 				when st_fb_init =>
 					fb_init_start <= '1';
@@ -197,7 +221,7 @@ begin
 				when st_disp_clear =>
 					fb_disp_start_write <= '1';
 					fb_disp_clear       <= '1';
-					fb_disp_clear_color <= (r => X"FF", g => X"00", b => X"00");
+					fb_disp_clear_color <= (r => X"00", g => X"00", b => X"FF");
 					fb_disp_window_rect <= FULLSCREEN_RECT;
 					state               <= st_disp_clear_wait;
 
@@ -231,7 +255,8 @@ begin
 				-- END
 
 				when st_end =>
-					state <= st_disp_write;
+					--state <= st_disp_write;
+					state <= st_end;
 			end case;
 		end if;
 	end process;

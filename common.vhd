@@ -1,6 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use ieee.math_real.all;
 
 package common is
 
@@ -21,6 +22,8 @@ package common is
 
 
 	-- CONSTANTS
+	
+	constant BITS_PER_PIXEL : integer := 24;
 
 	constant TILE_RES_X : integer := 200;
 	constant TILE_RES_Y : integer := 136;
@@ -41,5 +44,7 @@ package common is
 		y0 => to_unsigned(0, 16), 
 		y1 => to_unsigned((TILE_RES_Y-1), 16)
 	);
+	
+	constant TILE_ADDR_LEN : natural := integer(ceil(log2(real(TILE_RES_X*TILE_RES_Y)))); 
 	
 end package common;
