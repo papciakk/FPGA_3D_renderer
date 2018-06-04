@@ -6,28 +6,28 @@ use work.common.all;
 
 entity fb_display is
 	port(
-		clk           : in     std_logic;
-		rst           : in     std_logic;
+		clk                : in     std_logic;
+		rst                : in     std_logic;
 		---------------------------------------
-		start_write   : in     std_logic;
-		write_done    : buffer std_logic;
+		start_write        : in     std_logic;
+		write_done         : buffer std_logic;
 		---------------------------------------
-		fb_data_write : buffer std_logic_vector(7 downto 0);
-		fb_op_start   : buffer std_logic;
-		fb_op         : buffer fb_lo_level_op_type;
-		fb_op_done    : in     std_logic;
+		fb_data_write      : buffer std_logic_vector(7 downto 0);
+		fb_op_start        : buffer std_logic;
+		fb_op              : buffer fb_lo_level_op_type;
+		fb_op_done         : in     std_logic;
 		---------------------------------------
-		do_clear      : in     std_logic;
-		clear_color   : in     color_t;
+		do_clear           : in     std_logic;
+		clear_color        : in     color_t;
 		---------------------------------------
-		posx_out      : out    unsigned(16 downto 0);
-		posy_out      : out    unsigned(16 downto 0);
-		color_in      : in     color_t;
+		posx_out           : out    unsigned(15 downto 0);
+		posy_out           : out    unsigned(15 downto 0);
+		color_in           : in     color_t;
 		---------------------------------------
-		fb_color_g    : buffer std_logic_vector(7 downto 0);
-		fb_color_b    : buffer std_logic_vector(7 downto 0);
+		fb_color_g         : buffer std_logic_vector(7 downto 0);
+		fb_color_b         : buffer std_logic_vector(7 downto 0);
 		---------------------------------------
-		fb_window     : in     rect_t
+		fb_window          : in     rect_t
 	);
 end entity fb_display;
 
@@ -60,14 +60,9 @@ architecture RTL of fb_display is
 
 begin
 
-	tile_buffer0 : entity work.tile_buffer
-		port map(
-			clk         => clk,
-			rst         => rst,
-			posx_screen => cntx,
-			posy_screen => cnty,
-			color_out   => buf_out
-		);
+	buf_out     <= color_in;
+	posx_out <= cntx;
+	posy_out <= cnty;
 
 	process(clk, rst) is
 	begin
@@ -88,7 +83,7 @@ begin
 		end if;
 	end process;
 
-	process(state, cnt, fb_color_b, fb_color_g, fb_data_write, fb_op, fb_op_done, fb_op_start, fb_window.x0, fb_window.x1, fb_window.y0, fb_window.y1, start_write, write_done, cntx, cnty, buf_out.b, buf_out.g, buf_out.r, clear_color.b, clear_color.g, clear_color.r, clearing, do_clear) is
+	process(state, buf_out.b, buf_out.g, buf_out.r, clear_color.b, clear_color.g, clear_color.r, clearing, cnt, cntx, cnty, do_clear, fb_color_b, fb_color_g, fb_data_write, fb_op, fb_op_done, fb_op_start, fb_window.x0, fb_window.x1, fb_window.y0, fb_window.y1, start_write, write_done) is
 	begin
 		write_done_next    <= write_done;
 		fb_data_write_next <= fb_data_write;

@@ -94,9 +94,9 @@ architecture behavioral of snf0 is
 	signal fb_disp_write_done  : std_logic;
 	
 	-- framebuffer display out position, color input and window
-	signal fb_disp_posx_out : unsigned(16 downto 0);
-	signal fb_disp_posy_out : unsigned(16 downto 0);
-	signal fb_disp_color_in : color_t;
+	signal screen_posx : unsigned(15 downto 0);
+	signal screen_posy : unsigned(15 downto 0);
+	signal screen_pixel_color : color_t;
 	signal fb_disp_window_rect : rect_t := FULLSCREEN_RECT;
 	----------------------
 
@@ -148,9 +148,10 @@ begin
 
 	fb_display0 : entity work.fb_display
 		port map(
-			posx_out	  => fb_disp_posx_out,
-			posy_out	  => fb_disp_posy_out,
-			color_in	  => fb_disp_color_in,
+			posx_out	  => screen_posx,
+			posy_out	  => screen_posy,
+			color_in	  => screen_pixel_color,
+			------------------------------------
 			fb_window     => fb_disp_window_rect,
 			clk           => fb_disp_clk,
 			rst           => rst,
@@ -164,6 +165,15 @@ begin
 			fb_op_done    => fb_op_done,
 			fb_color_g    => VGA1_G,
 			fb_color_b    => VGA1_B
+		);
+		
+	tile_buffer0 : entity work.tile_buffer
+		port map(
+			clk                    => CLK_50,
+			rst                    => rst,
+			screen_posx            => screen_posx,
+			screen_posy            => screen_posy,
+			screen_pixel_color_out => screen_pixel_color
 		);
 		
 	led_blinker0 : entity work.led_blinker

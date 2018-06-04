@@ -6,11 +6,11 @@ use ieee.math_real.all;
 
 entity tile_buffer is
 	port(
-		clk         : in  std_logic;
-		rst         : in  std_logic;
-		posx_screen : in  unsigned(15 downto 0);
-		posy_screen : in  unsigned(15 downto 0);
-		color_out   : out color_t
+		clk                    : in  std_logic;
+		rst                    : in  std_logic;
+		screen_posx            : in  unsigned(15 downto 0);
+		screen_posy            : in  unsigned(15 downto 0);
+		screen_pixel_color_out : out color_t
 	);
 end entity tile_buffer;
 
@@ -31,24 +31,24 @@ begin
 			q         => ram_data_out_raw
 		);
 
-	ram_addr_rd <= std_logic_vector(to_unsigned(
-		to_integer(posy_screen * TILE_RES_X + posx_screen),
+	ram_addr_rd            <= std_logic_vector(to_unsigned(
+		to_integer(screen_posy * TILE_RES_X + screen_posx),
 		TILE_ADDR_LEN
 	));
-	color_out   <= (
-		b => ram_data_out_raw(7 downto 0), 
-		g => ram_data_out_raw(15 downto 8), 
+	screen_pixel_color_out <= (
+		b => ram_data_out_raw(7 downto 0),
+		g => ram_data_out_raw(15 downto 8),
 		r => ram_data_out_raw(23 downto 16)
 	);
---
---	process(clk, rst) is
---	begin
---		if rst = '1' then
---
---		elsif rising_edge(clk) then
---
---		end if;
---
---	end process;
+	--
+	--	process(clk, rst) is
+	--	begin
+	--		if rst = '1' then
+	--
+	--		elsif rising_edge(clk) then
+	--
+	--		end if;
+	--
+	--	end process;
 
 end architecture RTL;
