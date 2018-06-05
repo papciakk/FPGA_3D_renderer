@@ -34,17 +34,16 @@ begin
 		elsif rising_edge(clk50) then
 			if counter = (COUNTER_MAX_VAL - 1) then
 				counter <= (others => '0');
-				
+
 				if led_reg = '1' then
 					led_reg <= '0';
 				else
 					led_reg <= '1';
 				end if;
 			else
-				counter <= counter + 1; 
+				counter <= counter + 1;
 			end if;
 		end if;
-
 	end process;
 
 	led <= led_reg;

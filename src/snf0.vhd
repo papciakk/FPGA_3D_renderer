@@ -55,7 +55,7 @@ architecture behavioral of snf0 is
 		st_disp_write,
 		st_disp_wait,
 		st_end,
-		st_disp_clear, 
+		st_disp_clear,
 		st_disp_clear_wait
 	);
 	signal state : fsm_state_type := st_start;
@@ -88,15 +88,15 @@ architecture behavioral of snf0 is
 	-- framebuffer display clear signals
 	signal fb_disp_clear       : std_logic := '0';
 	signal fb_disp_clear_color : color_t   := (others => X"00");
-	
+
 	-- framebuffer display write control
 	signal fb_disp_start_write : std_logic := '0';
 	signal fb_disp_write_done  : std_logic;
-	
+
 	-- framebuffer display out position, color input and window
-	signal screen_posx : unsigned(15 downto 0);
-	signal screen_posy : unsigned(15 downto 0);
-	signal screen_pixel_color : color_t;
+	signal screen_posx         : unsigned(15 downto 0);
+	signal screen_posy         : unsigned(15 downto 0);
+	signal screen_pixel_color  : color_t;
 	signal fb_disp_window_rect : rect_t := FULLSCREEN_RECT;
 	----------------------
 
@@ -106,6 +106,12 @@ architecture behavioral of snf0 is
 
 	signal fb_init_start : std_logic := '0';
 	signal fb_init_done  : std_logic;
+	
+	-----------------------------------------
+	signal tilegen_posx_out : unsigned(15 downto 0);
+	signal tilegen_posy_out : unsigned(15 downto 0);
+	signal tilegen_color_out : color_t;
+	signal tilegen_enable : std_logic;
 
 begin
 
@@ -148,9 +154,9 @@ begin
 
 	fb_display0 : entity work.fb_display
 		port map(
-			posx_out	  => screen_posx,
-			posy_out	  => screen_posy,
-			color_in	  => screen_pixel_color,
+			posx_out      => screen_posx,
+			posy_out      => screen_posy,
+			color_in      => screen_pixel_color,
 			------------------------------------
 			fb_window     => fb_disp_window_rect,
 			clk           => fb_disp_clk,
@@ -166,19 +172,35 @@ begin
 			fb_color_g    => VGA1_G,
 			fb_color_b    => VGA1_B
 		);
-		
+
 	tile_buffer0 : entity work.tile_buffer
 		port map(
-			clk                    => CLK_50,
+			screen_clk             => fb_clk,
 			rst                    => rst,
 			screen_posx            => screen_posx,
 			screen_posy            => screen_posy,
-			screen_pixel_color_out => screen_pixel_color
+			screen_pixel_color_out => screen_pixel_color,
+			----------
+			tilegen_clk => CLK_50,
+			tilegen_posx => tilegen_posx_out,
+			tilegen_posy => tilegen_posy_out,
+			tilegen_enable => tilegen_enable,
+			tilegen_pixel_color => tilegen_color_out
 		);
 		
+	triangle_renderer0 : entity work.triangle_renderer
+		port map(
+			tilegen_clk       => CLK_50,
+			rst               => not rst,
+			tilegen_posx_out  => tilegen_posx_out,
+			tilegen_posy_out  => tilegen_posy_out,
+			tilegen_color_out => tilegen_color_out,
+			tilegen_enable    => tilegen_enable
+		);
+
 	led_blinker0 : entity work.led_blinker
 		generic map(
-			frequency => 5 -- Hz
+			frequency => 2              -- Hz
 		)
 		port map(
 			clk50 => CLK_50,
@@ -188,12 +210,8 @@ begin
 
 	LED(0) <= rst;
 	LED(2) <= '0';
-	
+
 	rst <= BTN(0);
-	
-	
-	--GPIO(0) <= fb_disp_clk;
-	--GPIO(1) <= fb_clk;
 
 	fb_clk        <= fb_initializer_clk when fb_initializer_enabled = '1' else fb_disp_clk;
 	fb_data_write <= fb_initializer_data_write when fb_initializer_enabled = '1' else fb_disp_data_write;
@@ -247,7 +265,7 @@ begin
 
 				-- DISPLAY IMAGE
 
-			when st_disp_write =>
+				when st_disp_write =>
 					fb_disp_clear       <= '0';
 					fb_disp_start_write <= '1';
 					state               <= st_disp_wait;

@@ -56,11 +56,7 @@ architecture RTL of fb_display is
 	signal fb_color_g_next    : std_logic_vector(7 downto 0);
 	signal fb_color_b_next    : std_logic_vector(7 downto 0);
 
-	signal buf_out : color_t;
-
 begin
-
-	buf_out     <= color_in;
 	posx_out <= cntx;
 	posy_out <= cnty;
 
@@ -83,7 +79,16 @@ begin
 		end if;
 	end process;
 
-	process(state, buf_out.b, buf_out.g, buf_out.r, clear_color.b, clear_color.g, clear_color.r, clearing, cnt, cntx, cnty, do_clear, fb_color_b, fb_color_g, fb_data_write, fb_op, fb_op_done, fb_op_start, fb_window.x0, fb_window.x1, fb_window.y0, fb_window.y1, start_write, write_done) is
+	process(
+		state, 
+		clear_color.b, clear_color.g, clear_color.r, clearing, do_clear,  
+		cnt, cntx, cnty, 
+		fb_color_b, fb_color_g, fb_data_write, 
+		fb_op, fb_op_done, fb_op_start, 
+		fb_window.x0, fb_window.x1, fb_window.y0, fb_window.y1, 
+		start_write, write_done, 
+		color_in.b, color_in.g, color_in.r
+	) is
 	begin
 		write_done_next    <= write_done;
 		fb_data_write_next <= fb_data_write;
@@ -255,9 +260,9 @@ begin
 							fb_color_g_next    <= clear_color.g;
 							fb_color_b_next    <= clear_color.b;
 						else
-							fb_data_write_next <= buf_out.r;
-							fb_color_g_next    <= buf_out.g;
-							fb_color_b_next    <= buf_out.b;
+							fb_data_write_next <= color_in.r;
+							fb_color_g_next    <= color_in.g;
+							fb_color_b_next    <= color_in.b;
 						end if;
 
 						fb_op_next       <= fb_lo_op_write_data;
