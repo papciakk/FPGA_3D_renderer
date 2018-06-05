@@ -1,3 +1,5 @@
+library framebuffer;
+
 package fb_types is
 
 	type fb_lo_level_op_type is (

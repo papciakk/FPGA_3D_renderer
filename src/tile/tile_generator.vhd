@@ -1,7 +1,8 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use work.common.all;
+library common;
+use common.common.all;
 
 entity tile_generator is
 	port(

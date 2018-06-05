@@ -1,8 +1,11 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use work.fb_types.all;
-use work.common.all;
+library framebuffer;
+use framebuffer.fb_types.all;
+library common;
+use common.common.all;
+
 
 entity fb_display is
 	port(
@@ -55,10 +58,19 @@ architecture RTL of fb_display is
 	signal fb_op_next         : fb_lo_level_op_type;
 	signal fb_color_g_next    : std_logic_vector(7 downto 0);
 	signal fb_color_b_next    : std_logic_vector(7 downto 0);
-
+	
+	signal fb_window_x0 : std_logic_vector(15 downto 0);
+	signal fb_window_y0 : std_logic_vector(15 downto 0);
+	signal fb_window_x1 : std_logic_vector(15 downto 0);
+	signal fb_window_y1 : std_logic_vector(15 downto 0);
 begin
 	posx_out <= cntx;
 	posy_out <= cnty;
+	
+	fb_window_x0 <= std_logic_vector(fb_window.x0);
+	fb_window_y0 <= std_logic_vector(fb_window.y0);
+	fb_window_x1 <= std_logic_vector(fb_window.x1);
+	fb_window_y1 <= std_logic_vector(fb_window.y1);
 
 	process(clk, rst) is
 	begin
@@ -87,7 +99,11 @@ begin
 		fb_op, fb_op_done, fb_op_start, 
 		fb_window.x0, fb_window.x1, fb_window.y0, fb_window.y1, 
 		start_write, write_done, 
-		color_in.b, color_in.g, color_in.r
+		color_in.b, color_in.g, color_in.r, 
+		fb_window_x0(15 downto 8), fb_window_x0(7 downto 0),
+		fb_window_x1(15 downto 8), fb_window_x1(7 downto 0), 
+		fb_window_y0(15 downto 8), fb_window_y0(7 downto 0), 
+		fb_window_y1(15 downto 8), fb_window_y1(7 downto 0)
 	) is
 	begin
 		write_done_next    <= write_done;
@@ -133,7 +149,7 @@ begin
 				end if;
 
 			when st_init_window_1 =>
-				fb_data_write_next <= std_logic_vector(fb_window.x0)(15 downto 8);
+				fb_data_write_next <= fb_window_x0(15 downto 8);
 				fb_op_next         <= fb_lo_op_write_data;
 				fb_op_start_next   <= '1';
 				state_next         <= st_init_window_1_wait;
@@ -145,7 +161,7 @@ begin
 				end if;
 
 			when st_init_window_2 =>
-				fb_data_write_next <= std_logic_vector(fb_window.x0)(7 downto 0);
+				fb_data_write_next <= fb_window_x0(7 downto 0);
 				fb_op_next         <= fb_lo_op_write_data;
 				fb_op_start_next   <= '1';
 				state_next         <= st_init_window_2_wait;
@@ -157,7 +173,7 @@ begin
 				end if;
 
 			when st_init_window_3 =>
-				fb_data_write_next <= std_logic_vector(fb_window.x1)(15 downto 8);
+				fb_data_write_next <= fb_window_x1(15 downto 8);
 				fb_op_next         <= fb_lo_op_write_data;
 				fb_op_start_next   <= '1';
 				state_next         <= st_init_window_3_wait;
@@ -169,7 +185,7 @@ begin
 				end if;
 
 			when st_init_window_4 =>
-				fb_data_write_next <= std_logic_vector(fb_window.x1)(7 downto 0);
+				fb_data_write_next <= fb_window_x1(7 downto 0);
 				fb_op_next         <= fb_lo_op_write_data;
 				fb_op_start_next   <= '1';
 				state_next         <= st_init_window_4_wait;
@@ -193,7 +209,7 @@ begin
 				end if;
 
 			when st_init_window_6 =>
-				fb_data_write_next <= std_logic_vector(fb_window.y0)(15 downto 8);
+				fb_data_write_next <= fb_window_y0(15 downto 8);
 				fb_op_next         <= fb_lo_op_write_data;
 				fb_op_start_next   <= '1';
 				state_next         <= st_init_window_6_wait;
@@ -205,7 +221,7 @@ begin
 				end if;
 
 			when st_init_window_7 =>
-				fb_data_write_next <= std_logic_vector(fb_window.y0)(7 downto 0);
+				fb_data_write_next <= fb_window_y0(7 downto 0);
 				fb_op_next         <= fb_lo_op_write_data;
 				fb_op_start_next   <= '1';
 				state_next         <= st_init_window_7_wait;
@@ -217,7 +233,7 @@ begin
 				end if;
 
 			when st_init_window_8 =>
-				fb_data_write_next <= std_logic_vector(fb_window.y1)(15 downto 8);
+				fb_data_write_next <= fb_window_y1(15 downto 8);
 				fb_op_next         <= fb_lo_op_write_data;
 				fb_op_start_next   <= '1';
 				state_next         <= st_init_window_8_wait;
@@ -229,7 +245,7 @@ begin
 				end if;
 
 			when st_init_window_9 =>
-				fb_data_write_next <= std_logic_vector(fb_window.y1)(7 downto 0);
+				fb_data_write_next <= fb_window_y1(7 downto 0);
 				fb_op_next         <= fb_lo_op_write_data;
 				fb_op_start_next   <= '1';
 				state_next         <= st_init_window_9_wait;

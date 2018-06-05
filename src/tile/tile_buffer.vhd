@@ -1,13 +1,15 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use work.common.all;
 use ieee.math_real.all;
+library common;
+use common.common.all;
+library generated;
+use generated.tile_ram;
 
 entity tile_buffer is
 	port(
 		screen_clk             : in  std_logic;
-		rst                    : in  std_logic;
 		screen_posx            : in  unsigned(15 downto 0);
 		screen_posy            : in  unsigned(15 downto 0);
 		screen_pixel_color_out : out color_t;
@@ -35,7 +37,7 @@ begin
 	
 	ram_addr_wr <= std_logic_vector(to_unsigned(to_integer(tilegen_posy * TILE_RES_X + tilegen_posx), TILE_ADDR_LEN));
 
-	tile_ram0 : entity work.tile_ram
+	tile_ram0 : entity generated.tile_ram
 		port map(
 			data      => tilegen_pixel_color_raw,
 			rdaddress => ram_addr_rd,

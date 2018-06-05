@@ -1,49 +1,55 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use work.fb_types.all;
-use work.common.all;
+library framebuffer;
+use framebuffer.fb_types.all;
+library common;
+use common.common.all;
+library generated;
+use generated.all;
+library tile;
+use tile.all;
 
 entity snf0 is
 	port(
 		CLK_50         : in    std_logic;
-		CLK_50_2       : in    std_logic;
-		PS2_CLK        : inout std_logic;
-		PS2_DATA       : inout std_logic;
-		UART_RXD       : in    std_logic;
-		UART_TXD       : out   std_logic;
-		SRAM_CLK       : out   std_logic;
-		SRAM_ADDR      : out   std_logic_vector(18 downto 0);
-		SRAM_DQ        : inout std_logic_vector(31 downto 0);
-		SRAM_PAR       : inout std_logic_vector(3 downto 0);
-		SRAM_MODE      : out   std_logic;
-		SRAM_ADSC_n    : out   std_logic;
-		SRAM_ADSP_n    : out   std_logic;
-		SRAM_ADV_n     : out   std_logic;
-		SRAM_BWE_n     : out   std_logic;
-		SRAM_CE2_n     : out   std_logic;
-		SRAM_CE_n      : out   std_logic;
-		SRAM_OE_n      : out   std_logic;
-		SRAM_ZZ        : out   std_logic;
-		VGA1_PIXEL_CLK : in    std_logic;
+--		CLK_50_2       : in    std_logic;
+--		PS2_CLK        : inout std_logic;
+--		PS2_DATA       : inout std_logic;
+--		UART_RXD       : in    std_logic;
+--		UART_TXD       : out   std_logic;
+--		SRAM_CLK       : out   std_logic;
+--		SRAM_ADDR      : out   std_logic_vector(18 downto 0);
+--		SRAM_DQ        : inout std_logic_vector(31 downto 0);
+--		SRAM_PAR       : inout std_logic_vector(3 downto 0);
+--		SRAM_MODE      : out   std_logic;
+--		SRAM_ADSC_n    : out   std_logic;
+--		SRAM_ADSP_n    : out   std_logic;
+--		SRAM_ADV_n     : out   std_logic;
+--		SRAM_BWE_n     : out   std_logic;
+--		SRAM_CE2_n     : out   std_logic;
+--		SRAM_CE_n      : out   std_logic;
+--		SRAM_OE_n      : out   std_logic;
+--		SRAM_ZZ        : out   std_logic;
+--		VGA1_PIXEL_CLK : in    std_logic;
 		VGA1_CS_n      : out   std_logic;
 		VGA1_DC_n      : out   std_logic;
 		VGA1_RD_n      : out   std_logic;
 		VGA1_WR_n      : out   std_logic;
 		VGA1_RESET_n   : out   std_logic;
-		VGA1_TE        : in    std_logic;
+--		VGA1_TE        : in    std_logic;
 		VGA1_R         : inout std_logic_vector(7 downto 0);
 		VGA1_G         : out   std_logic_vector(7 downto 0);
 		VGA1_B         : out   std_logic_vector(7 downto 0);
-		VGA2_R         : out   std_logic;
-		VGA2_G         : out   std_logic;
-		VGA2_B         : out   std_logic;
-		VGA2_VSync     : out   std_logic;
-		VGA2_HSync     : out   std_logic;
+--		VGA2_R         : out   std_logic;
+--		VGA2_G         : out   std_logic;
+--		VGA2_B         : out   std_logic;
+--		VGA2_VSync     : out   std_logic;
+--		VGA2_HSync     : out   std_logic;
 		BTN            : in    std_logic_vector(1 downto 0);
-		LED            : out   std_logic_vector(2 downto 0);
-		GPIO           : inout std_logic_vector(0 to 3);
-		GPI            : in    std_logic_vector(0 to 7)
+		LED            : out   std_logic_vector(2 downto 0)
+--		GPIO           : inout std_logic_vector(0 to 3);
+--		GPI            : in    std_logic_vector(0 to 7)
 	);
 
 end snf0;
@@ -63,7 +69,6 @@ architecture behavioral of snf0 is
 	----------------------------------------
 
 	signal rst : std_logic;
-	signal cnt : unsigned(31 downto 0) := (others => '0');
 
 	----------------------------------------
 
@@ -115,7 +120,7 @@ architecture behavioral of snf0 is
 
 begin
 
-	pll0 : entity work.pll
+	pll0 : entity generated.pll
 		port map(
 			areset => not rst,
 			inclk0 => CLK_50,
@@ -123,7 +128,7 @@ begin
 			c1     => fb_disp_clk
 		);
 
-	fb_lo_level_driver0 : entity work.fb_lo_level_driver
+	fb_lo_level_driver0 : entity framebuffer.fb_lo_level_driver
 		port map(
 			clk          => fb_clk,
 			rst          => not rst,
@@ -140,7 +145,7 @@ begin
 			VGA1_R       => VGA1_R
 		);
 
-	fb_initializer0 : entity work.fb_initializer
+	fb_initializer0 : entity framebuffer.fb_initializer
 		port map(
 			clk           => fb_initializer_clk,
 			rst           => rst,
@@ -152,7 +157,7 @@ begin
 			fb_op_done    => fb_op_done
 		);
 
-	fb_display0 : entity work.fb_display
+	fb_display0 : entity framebuffer.fb_display
 		port map(
 			posx_out      => screen_posx,
 			posy_out      => screen_posy,
@@ -173,10 +178,9 @@ begin
 			fb_color_b    => VGA1_B
 		);
 
-	tile_buffer0 : entity work.tile_buffer
+	tile_buffer0 : entity tile.tile_buffer
 		port map(
 			screen_clk             => fb_clk,
-			rst                    => rst,
 			screen_posx            => screen_posx,
 			screen_posy            => screen_posy,
 			screen_pixel_color_out => screen_pixel_color,
@@ -188,7 +192,7 @@ begin
 			tilegen_pixel_color => tilegen_color_out
 		);
 		
-	triangle_renderer0 : entity work.tile_generator
+	triangle_renderer0 : entity tile.tile_generator
 		port map(
 			tilegen_clk       => CLK_50,
 			rst               => not rst,
@@ -198,7 +202,7 @@ begin
 			tilegen_enable    => tilegen_enable
 		);
 
-	led_blinker0 : entity work.led_blinker
+	led_blinker0 : entity common.led_blinker
 		generic map(
 			frequency => 2              -- Hz
 		)
