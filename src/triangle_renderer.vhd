@@ -49,14 +49,38 @@ architecture bahavioral of triangle_renderer is
 	--	
 	--	signal e_tmp : arr3_32_t;
 
-	signal e0, e1, e2 : signed(31 downto 0);
-	signal s0, s1, s2 : std_logic;
+	signal e0, e1, e2 : std_logic;	
+	
+	function cross_product_sign(
+		x : unsigned(15 downto 0); y : unsigned(15 downto 0); 
+		p2 : point2d_t; p3 : point2d_t
+	) return std_logic is
+		variable sign : signed(31 downto 0);
+		variable p2x_s, p2y_s, p3x_s, p3y_s, x_s, y_s : signed(15 downto 0);
+	begin
+		p2x_s := signed(std_logic_vector(p2.x));
+		p2y_s := signed(std_logic_vector(p2.y));
+		p3x_s := signed(std_logic_vector(p3.x));
+		p3y_s := signed(std_logic_vector(p3.y));		
+		x_s := signed(std_logic_vector(x));
+		y_s := signed(std_logic_vector(y));
+		
+	    sign := (x_s - p3x_s) * (p2y_s - p3y_s) - (p2x_s - p3x_s) * (y_s - p3y_s);
+		
+		if sign > 0 then
+			return '1';
+		else
+			return '0';
+		end if;
+	end function;
 
 begin
 
-	e0 <= (signed(std_logic_vector((cntx - p(1).x) * (p(0).y - p(1).y))) - signed(std_logic_vector((p(0).x - p(1).x) * (cnty - p(1).y))));
-	e1 <= (signed(std_logic_vector((cntx - p(2).x) * (p(1).y - p(2).y))) - signed(std_logic_vector((p(1).x - p(2).x) * (cnty - p(2).y))));
-	e2 <= (signed(std_logic_vector((cntx - p(0).x) * (p(2).y - p(0).y))) - signed(std_logic_vector((p(2).x - p(0).x) * (cnty - p(0).y))));
+	
+
+	e0 <= cross_product_sign(cntx, cnty, p(0), p(1));
+	e1 <= cross_product_sign(cntx, cnty, p(1), p(2));
+	e2 <= cross_product_sign(cntx, cnty, p(2), p(0));
 
 	process(tilegen_clk, rst) is
 	begin
@@ -77,19 +101,18 @@ begin
 				end if;
 			else
 				cntx <= cntx + 1;
-
-				if (e0 < 0) and (e1 < 0) and (e2 < 0) then
-					tilegen_enable <= '1';
-				else
-					tilegen_enable <= '0';
-				end if;
-
 			end if;
 
-			tilegen_posx_out <= cntx;
-			tilegen_posy_out <= cnty;
+			if e0 = '1' and e1 = '1' and e2 = '1' then
+				tilegen_enable <= '1';
+			else
+				tilegen_enable <= '0';
+			end if;
+
+			tilegen_posx_out  <= cntx;
+			tilegen_posy_out  <= cnty;
 			tilegen_color_out <= COLOR_WHITE;
-			
+
 		end if;
 
 	end process;
