@@ -1,14 +1,9 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-library framebuffer;
-use framebuffer.fb_types.all;
-library common;
-use common.common.all;
-library generated;
-use generated.all;
-library tile;
-use tile.all;
+use work.fb_types.all;
+use work.common.all;
+use work.pll;
 
 entity snf0 is
 	port(
@@ -120,7 +115,7 @@ architecture behavioral of snf0 is
 
 begin
 
-	pll0 : entity generated.pll
+	pll0 : entity work.pll
 		port map(
 			areset => not rst,
 			inclk0 => CLK_50,
@@ -128,7 +123,7 @@ begin
 			c1     => fb_disp_clk
 		);
 
-	fb_lo_level_driver0 : entity framebuffer.fb_lo_level_driver
+	fb_lo_level_driver0 : entity work.fb_lo_level_driver
 		port map(
 			clk          => fb_clk,
 			rst          => not rst,
@@ -145,7 +140,7 @@ begin
 			VGA1_R       => VGA1_R
 		);
 
-	fb_initializer0 : entity framebuffer.fb_initializer
+	fb_initializer0 : entity work.fb_initializer
 		port map(
 			clk           => fb_initializer_clk,
 			rst           => rst,
@@ -157,7 +152,7 @@ begin
 			fb_op_done    => fb_op_done
 		);
 
-	fb_display0 : entity framebuffer.fb_display
+	fb_display0 : entity work.fb_display
 		port map(
 			posx_out      => screen_posx,
 			posy_out      => screen_posy,
@@ -178,7 +173,7 @@ begin
 			fb_color_b    => VGA1_B
 		);
 
-	tile_buffer0 : entity tile.tile_buffer
+	tile_buffer0 : entity work.tile_buffer
 		port map(
 			screen_clk             => fb_clk,
 			screen_posx            => screen_posx,
@@ -192,7 +187,7 @@ begin
 			tilegen_pixel_color => tilegen_color_out
 		);
 		
-	triangle_renderer0 : entity tile.tile_generator
+	triangle_renderer0 : entity work.tile_generator
 		port map(
 			tilegen_clk       => CLK_50,
 			rst               => not rst,
@@ -202,7 +197,7 @@ begin
 			tilegen_enable    => tilegen_enable
 		);
 
-	led_blinker0 : entity common.led_blinker
+	led_blinker0 : entity work.led_blinker
 		generic map(
 			frequency => 2              -- Hz
 		)

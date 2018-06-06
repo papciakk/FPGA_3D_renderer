@@ -62,6 +62,11 @@ package common is
 	-- FUNCTIONS
 	
 	function point2d(x : integer; y : integer) return point2d_t;
+		
+	function maximum2(x, y : unsigned) return unsigned;
+	function minimum2(x, y : unsigned) return unsigned;
+	function maximum3(x, y, z : unsigned) return unsigned;
+	function minimum3(x, y, z : unsigned) return unsigned;
 
 end package common;
 
@@ -72,6 +77,34 @@ package body common is
 	function point2d(x : integer; y : integer) return point2d_t is
 	begin
 		return (x => to_unsigned(x, 16), y => to_unsigned(y, 16));
+	end function;
+	
+	function minimum3(x, y, z : unsigned) return unsigned is
+	begin 
+		if x < y then
+			if x < z then return x; else return z; end if;
+		else
+			if y < z then return y; else return z; end if;
+		end if;
+	end function;
+	
+	function maximum3(x, y, z : unsigned) return unsigned is
+	begin 
+		if x > y then
+			if x > z then return x; else return z; end if;
+		else
+			if y > z then return y; else return z; end if;
+		end if;
+	end function;
+	
+	function minimum2(x, y : unsigned) return unsigned is
+	begin
+		if x < y then return x; else return y; end if;
+	end function;
+	
+	function maximum2(x, y : unsigned) return unsigned is
+	begin
+		if x > y then return x; else return y; end if;
 	end function;
 
 end package body;
