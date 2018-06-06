@@ -18,11 +18,16 @@ architecture bahavioral of tile_generator is
 
 	constant p : triangle2d_t := (
 		point2d(18, 83),
-		point2d(120, 18),
+		point2d(500, 18),
 		point2d(170, 120)
 	);
 
 	signal triangle_rendered : std_logic;
+	
+	type state_type is (
+		st_start, st_render_task, st_render_task_wait, st_finished
+	);
+	signal state, state_next : state_type := st_start;
 
 begin
 
@@ -40,5 +45,7 @@ begin
 		);
 
 	tilegen_color_out <= COLOR_WHITE;
+	
+	
 
 end architecture bahavioral;

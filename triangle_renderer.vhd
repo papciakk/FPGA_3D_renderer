@@ -35,14 +35,13 @@ architecture RTL of triangle_renderer is
 	end function;
 
 	function get_triangle_and_tile_intersected_bounding_box(triangle_bb : rect_t; tile_bb : rect_t) return rect_t is
-		variable min_x, max_x : unsigned(15 downto 0);
-		variable min_y, max_y : unsigned(15 downto 0);
 	begin
-		min_x := minimum2(triangle_bb.x0, tile_bb.x0);
-		min_y := minimum2(triangle_bb.y0, tile_bb.y0);
-		max_x := maximum2(triangle_bb.x1, tile_bb.x1);
-		max_y := maximum2(triangle_bb.y1, tile_bb.y1);
-		return (x0 => min_x, y0 => min_y, x1 => max_x, y1 => max_y);
+		return (
+			x0 => maximum2(triangle_bb.x0, tile_bb.x0),
+			y0 => maximum2(triangle_bb.y0, tile_bb.y0),
+			x1 => minimum2(triangle_bb.x1, tile_bb.x1),
+			y1 => minimum2(triangle_bb.y1, tile_bb.y1)
+		);
 	end;
 
 	-- TRIANGLE RENDERING

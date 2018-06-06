@@ -46,9 +46,9 @@ package common is
 
 	constant ZERO_TILE_RECT : rect_t := (
 		x0 => to_unsigned(0, 16),
-		x1 => to_unsigned((TILE_RES_X - 1), 16),
+		x1 => to_unsigned(TILE_RES_X, 16),
 		y0 => to_unsigned(0, 16),
-		y1 => to_unsigned((TILE_RES_Y - 1), 16)
+		y1 => to_unsigned(TILE_RES_Y, 16)
 	);
 
 	constant TILE_ADDR_LEN : natural := integer(ceil(log2(real(TILE_RES_X * TILE_RES_Y))));
