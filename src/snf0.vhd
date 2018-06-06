@@ -187,7 +187,7 @@ begin
 			tilegen_pixel_color => tilegen_color_out
 		);
 		
-	triangle_renderer0 : entity work.tile_generator
+	tile_generator0 : entity work.tile_generator
 		port map(
 			tilegen_clk       => CLK_50,
 			rst               => not rst,

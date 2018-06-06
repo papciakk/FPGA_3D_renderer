@@ -26,6 +26,11 @@ package common is
 	end record;
 
 	type triangle2d_t is array (0 to 2) of point2d_t;
+	type triangle_indices_t is record
+		a: unsigned(15 downto 0);
+		b: unsigned(15 downto 0);
+		c: unsigned(15 downto 0);
+	end record;
 
 	-- CONSTANTS
 
@@ -62,6 +67,7 @@ package common is
 	-- FUNCTIONS
 	
 	function point2d(x : integer; y : integer) return point2d_t;
+	function idx(a : integer; b : integer; c: integer) return triangle_indices_t;
 		
 	function maximum2(x, y : unsigned) return unsigned;
 	function minimum2(x, y : unsigned) return unsigned;
@@ -77,6 +83,11 @@ package body common is
 	function point2d(x : integer; y : integer) return point2d_t is
 	begin
 		return (x => to_unsigned(x, 16), y => to_unsigned(y, 16));
+	end function;
+	
+	function idx(a : integer; b : integer; c: integer) return triangle_indices_t is
+	begin
+		return (a => to_unsigned(a, 16), b => to_unsigned(b, 16), c => to_unsigned(c, 16));
 	end function;
 	
 	function minimum3(x, y, z : unsigned) return unsigned is

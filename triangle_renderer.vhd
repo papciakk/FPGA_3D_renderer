@@ -46,8 +46,8 @@ architecture RTL of triangle_renderer is
 
 	-- TRIANGLE RENDERING
 
-	signal cntx : unsigned(15 downto 0);
-	signal cnty : unsigned(15 downto 0);
+	signal cntx, cntx_next : unsigned(15 downto 0);
+	signal cnty, cnty_next : unsigned(15 downto 0);
 
 	signal e0, e1, e2 : std_logic;
 
@@ -79,6 +79,9 @@ architecture RTL of triangle_renderer is
 	);
 	signal state, state_next : state_type := st_start;
 
+	signal pixel_out_next : std_logic := '0';
+	signal ready_out_next : std_logic := '0';
+
 begin
 
 	triangle_bounding_box       <= get_triangle_bounding_box(triangle_in);
@@ -94,54 +97,69 @@ begin
 	process(clk, rst) is
 	begin
 		if rst = '1' then
-			pixel_out <= '0';
-			cntx      <= (others => '0');
-			cnty      <= (others => '0');
+			state <= st_start;
 		elsif rising_edge(clk) then
+			pixel_out <= pixel_out_next;
+			cntx      <= cntx_next;
+			cnty      <= cnty_next;
+			ready_out <= ready_out_next;
+			state     <= state_next;
+		end if;
+	end process;
 
-			case state is
-				when st_start =>
-					pixel_out <= '0';
-					cntx      <= (others => '0');
-					cnty      <= (others => '0');
-					ready_out <= '0';
-					state     <= st_idle;
+	process(state, cntx, cnty, current_render_bounding_box.x0, current_render_bounding_box.x1, current_render_bounding_box.y0, current_render_bounding_box.y1, e0, e1, e2, pixel_out, ready_out, start_in) is
+	begin
+		state_next     <= state;
+		pixel_out_next <= pixel_out;
+		cntx_next      <= cntx;
+		cnty_next      <= cnty;
+		ready_out_next <= ready_out;
 
-				when st_idle =>
-					if start_in = '1' then
-						cntx  <= current_render_bounding_box.x0;
-						cnty  <= current_render_bounding_box.y0;
-						ready_out <= '0';
-						state <= st_render;
-					else
-						state <= st_idle;
-					end if;
+		case state is
+			when st_start =>
+				pixel_out_next <= '0';
+				cntx_next      <= (others => '0');
+				cnty_next      <= (others => '0');
+				ready_out_next <= '0';
+				state_next     <= st_idle;
 
-				when st_render =>
-					if cntx = (current_render_bounding_box.x1 - 1) then
-						cntx <= (others => '0');
-						if cnty = (current_render_bounding_box.y1 - 1) then
-							cnty <= (others => '0');
-							
-							state <= st_finished;
-						else
-							cnty <= cnty + 1;
-						end if;
+			when st_idle =>
+				ready_out_next <= '0';
+				if start_in = '1' then
+					cntx_next      <= current_render_bounding_box.x0;
+					cnty_next      <= current_render_bounding_box.y0;
+					state_next     <= st_render;
+				else
+					state_next <= st_idle;
+				end if;
+
+			when st_render =>
+				if cntx = (current_render_bounding_box.x1) then
+					cntx_next <= (others => '0');
+					if cnty = (current_render_bounding_box.y1) then
+						cnty_next  <= (others => '0');
+						state_next <= st_finished;
 					else
-						cntx <= cntx + 1;
+						cnty_next <= cnty + 1;
 					end if;
-	
-					if e0 = '1' and e1 = '1' and e2 = '1' then
-						pixel_out <= '1';
-					else
-						pixel_out <= '0';
-					end if;
+				else
+					cntx_next <= cntx + 1;
+				end if;
+
+				if e0 = '1' and e1 = '1' and e2 = '1' then
+					pixel_out_next <= '1';
+				else
+					pixel_out_next <= '0';
+				end if;
 
 			when st_finished =>
-				ready_out <= '1';
-		end case;
+				ready_out_next <= '1';
+				pixel_out_next <= '0';
+				cntx_next      <= (others => '0');
+				cnty_next      <= (others => '0');
 
-		end if;
+				state_next <= st_idle;
+		end case;
 	end process;
 
 end architecture RTL;
