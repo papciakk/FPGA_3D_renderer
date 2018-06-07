@@ -67,7 +67,7 @@ architecture RTL of triangle_renderer is
 
 		sign := (x_s - p3x_s) * (p2y_s - p3y_s) - (p2x_s - p3x_s) * (y_s - p3y_s);
 
-		if sign > 0 then
+		if sign <= 0 then
 			return '1';
 		else
 			return '0';
