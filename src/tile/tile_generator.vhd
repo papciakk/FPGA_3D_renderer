@@ -21,7 +21,7 @@ architecture bahavioral of tile_generator is
 
 	signal start_rendering, start_rendering_next : std_logic := '0';
 	signal triangle_rendered                     : std_logic;
-	
+
 	signal rand : std_logic_vector(31 downto 0);
 
 	type state_type is (
@@ -52,8 +52,6 @@ begin
 			seed => (others => '0')
 		);
 
-	tilegen_color_out <= COLOR_WHITE;
-
 	process(tilegen_clk, rst) is
 	begin
 		if rst = '1' then
@@ -66,7 +64,7 @@ begin
 		end if;
 	end process;
 
-	process(state, current_triangle_index, triangle_rendered, start_rendering, triangle) is
+	process(state, current_triangle_index, triangle_rendered, start_rendering, triangle, rand(15 downto 8), rand(23 downto 16), rand(7 downto 0)) is
 	begin
 		state_next                  <= state;
 		current_triangle_index_next <= current_triangle_index;
@@ -86,6 +84,7 @@ begin
 					vertices(to_integer(indices(current_triangle_index).b)),
 					vertices(to_integer(indices(current_triangle_index).c))
 				);
+				tilegen_color_out    <= (r => rand(7 downto 0), g => rand(15 downto 8), b=> rand(23 downto 16));
 				state_next           <= st_render_task_wait;
 
 			when st_render_task_wait =>
