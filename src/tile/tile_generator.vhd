@@ -21,6 +21,8 @@ architecture bahavioral of tile_generator is
 
 	signal start_rendering, start_rendering_next : std_logic := '0';
 	signal triangle_rendered                     : std_logic;
+	
+	signal rand : std_logic_vector(31 downto 0);
 
 	type state_type is (
 		st_start, st_render_task, st_render_task_wait, st_finished, st_idle
@@ -40,6 +42,14 @@ begin
 			posy_out      => tilegen_posy_out,
 			start_in      => start_rendering,
 			ready_out     => triangle_rendered
+		);
+
+	random0 : entity work.random
+		port map(
+			clk  => tilegen_clk,
+			rst  => rst,
+			rand => rand,
+			seed => (others => '0')
 		);
 
 	tilegen_color_out <= COLOR_WHITE;
