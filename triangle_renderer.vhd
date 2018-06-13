@@ -3,7 +3,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.common.all;
 
-entity triangle_renderer is
+entity renderer_triangle is
 	port(
 		clk           : in  std_logic;
 		rst           : in  std_logic;
@@ -15,16 +15,16 @@ entity triangle_renderer is
 		start_in      : in  std_logic;
 		ready_out     : out std_logic
 	);
-end entity triangle_renderer;
+end entity renderer_triangle;
 
-architecture RTL of triangle_renderer is
-	signal current_render_bounding_box, current_render_bounding_box_next : rect_t;
+architecture RTL of renderer_triangle is
+	signal current_render_bounding_box, current_render_bounding_box_next : srect_t;
 
 	-- BOUNDING BOX CALCULATION
 
-	function get_triangle_bounding_box(triangle : triangle2d_t) return rect_t is
-		variable min_x, max_x : unsigned(15 downto 0);
-		variable min_y, max_y : unsigned(15 downto 0);
+	function get_triangle_bounding_box(triangle : triangle2d_t) return srect_t is
+		variable min_x, max_x : s16;
+		variable min_y, max_y : s16;
 	begin
 		min_x := minimum3(triangle(0).x, triangle(1).x, triangle(2).x);
 		min_y := minimum3(triangle(0).y, triangle(1).y, triangle(2).y);
@@ -33,17 +33,17 @@ architecture RTL of triangle_renderer is
 		return (x0 => min_x, y0 => min_y, x1 => max_x, y1 => max_y);
 	end function;
 
-	function get_triangle_and_tile_intersected_bounding_box(triangle_bb : rect_t; tile_bb : rect_t) return rect_t is
+	function get_triangle_and_tile_intersected_bounding_box(triangle_bb : srect_t; tile_bb : rect_t) return srect_t is
 	begin
 		return (
-			x0 => maximum2(triangle_bb.x0, tile_bb.x0),
-			y0 => maximum2(triangle_bb.y0, tile_bb.y0),
-			x1 => minimum2(triangle_bb.x1, tile_bb.x1),
-			y1 => minimum2(triangle_bb.y1, tile_bb.y1)
+			x0 => maximum2(triangle_bb.x0, to_s16(tile_bb.x0)),
+			y0 => maximum2(triangle_bb.y0, to_s16(tile_bb.y0)),
+			x1 => minimum2(triangle_bb.x1, to_s16(tile_bb.x1)),
+			y1 => minimum2(triangle_bb.y1, to_s16(tile_bb.y1))
 		);
 	end;
 
-	function get_current_rendering_bounding_box(triangle : triangle2d_t; tile_rect : rect_t) return rect_t is
+	function get_current_rendering_bounding_box(triangle : triangle2d_t; tile_rect : rect_t) return srect_t is
 	begin
 		return get_triangle_and_tile_intersected_bounding_box(
 			get_triangle_bounding_box(triangle),
@@ -53,8 +53,8 @@ architecture RTL of triangle_renderer is
 
 	-- TRIANGLE RENDERING
 
-	signal cntx, cntx_next : unsigned(15 downto 0);
-	signal cnty, cnty_next : unsigned(15 downto 0);
+	signal cntx, cntx_next : s16;
+	signal cnty, cnty_next : s16;
 
 	signal put_pixel_out_next : std_logic := '0';
 	signal ready_out_next     : std_logic := '0';
@@ -62,19 +62,10 @@ architecture RTL of triangle_renderer is
 	signal triangle_latch, triangle_latch_next       : triangle2d_t;
 
 	function cross_product_sign(
-		x  : unsigned(15 downto 0); y : unsigned(15 downto 0);
-		p2 : point2d_t; p3 : point2d_t
+		x, y : s16; p2, p3 : point2d_t
 	) return boolean is
-		variable p2x_s, p2y_s, p3x_s, p3y_s, x_s, y_s : signed(15 downto 0);
 	begin
-		p2x_s := signed(std_logic_vector(p2.x));
-		p2y_s := signed(std_logic_vector(p2.y));
-		p3x_s := signed(std_logic_vector(p3.x));
-		p3y_s := signed(std_logic_vector(p3.y));
-		x_s   := signed(std_logic_vector(x));
-		y_s   := signed(std_logic_vector(y));
-
-		return ((x_s - p3x_s) * (p2y_s - p3y_s) - (p2x_s - p3x_s) * (y_s - p3y_s)) <= 0;
+		return ((x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (y - p3.y)) <= 0;
 	end function;
 
 	type state_type is (
@@ -83,8 +74,8 @@ architecture RTL of triangle_renderer is
 	signal state, state_next : state_type := st_start;
 
 begin
-	posx_out <= cntx;
-	posy_out <= cnty;
+	posx_out <= to_u16_with_cut(cntx);
+	posy_out <= to_u16_with_cut(cnty);
 
 	process(clk, rst) is
 	begin
@@ -101,7 +92,7 @@ begin
 		end if;
 	end process;
 
-	process(state, cntx, cnty, current_render_bounding_box.x0, current_render_bounding_box.x1, current_render_bounding_box.y0, current_render_bounding_box.y1, put_pixel_out, ready_out, start_in, current_render_bounding_box, tile_rect_in, triangle_in, triangle_in(0), triangle_in(1), triangle_in(2)) is
+	process(state, cntx, cnty, current_render_bounding_box.x0, current_render_bounding_box.x1, current_render_bounding_box.y0, current_render_bounding_box.y1, put_pixel_out, ready_out, start_in, current_render_bounding_box, tile_rect_in, triangle_in, triangle_latch, triangle_latch(0), triangle_latch(1), triangle_latch(2)) is
 	begin
 		state_next                       <= state;
 		put_pixel_out_next               <= put_pixel_out;
