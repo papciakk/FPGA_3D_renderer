@@ -206,9 +206,9 @@ begin
 		port map(
 			clk                  => tilegen_clk,
 			rst                  => rst,
-			current_tile_rect_in => ZERO_TILE_RECT,
+			tile_rect_in => ZERO_TILE_RECT,
 			triangle_in          => triangle,
-			pixel_out            => tilegen_enable,
+			put_pixel_out            => tilegen_enable,
 			posx_out             => tilegen_posx_out,
 			posy_out             => tilegen_posy_out,
 			start_in             => start_rendering,
