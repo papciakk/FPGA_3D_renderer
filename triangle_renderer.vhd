@@ -111,6 +111,7 @@ begin
 				state_next         <= st_idle;
 
 			when st_idle =>
+				put_pixel_out_next <= '0';
 				ready_out_next <= '0';
 				if start_in = '1' then
 					triangle_latch_next <= triangle_in;
@@ -121,12 +122,14 @@ begin
 				end if;
 
 			when st_start_render =>
+				put_pixel_out_next <= '0';
 				cntx_next <= current_render_bounding_box.x0;
 				cnty_next <= current_render_bounding_box.y0;
 
 				state_next <= st_render;
 
 			when st_render =>
+				put_pixel_out_next <= '0';
 				if cntx = (current_render_bounding_box.x1) then
 					cntx_next <= (others => '0');
 					if cnty = (current_render_bounding_box.y1) then
@@ -136,18 +139,19 @@ begin
 						cnty_next <= cnty + 1;
 					end if;
 				else
+					if 
+						cross_product_sign(cntx, cnty, triangle_latch(0), triangle_latch(1)) and 
+						cross_product_sign(cntx, cnty, triangle_latch(1), triangle_latch(2)) and 
+						cross_product_sign(cntx, cnty, triangle_latch(2), triangle_latch(0)) 
+					then
+						put_pixel_out_next <= '1';
+					else
+						put_pixel_out_next <= '0';
+					end if;
+					
 					cntx_next <= cntx + 1;
 				end if;
 
-				if 
-					cross_product_sign(cntx, cnty, triangle_latch(0), triangle_latch(1)) and 
-					cross_product_sign(cntx, cnty, triangle_latch(1), triangle_latch(2)) and 
-					cross_product_sign(cntx, cnty, triangle_latch(2), triangle_latch(0)) 
-				then
-					put_pixel_out_next <= '1';
-				else
-					put_pixel_out_next <= '0';
-				end if;
 
 			when st_finished =>
 				ready_out_next     <= '1';
