@@ -6,6 +6,13 @@ use ieee.math_real.all;
 package common is
 
 	-- TYPEDEFS
+	
+	subtype u16 is unsigned(15 downto 0);
+	subtype s16 is signed(15 downto 0);
+	subtype u32 is unsigned(31 downto 0);
+	subtype s32 is signed(31 downto 0);
+	subtype u8 is unsigned(7 downto 0);
+	subtype s8 is signed(7 downto 0);
 
 	type color_t is record
 		r : std_logic_vector(7 downto 0);
@@ -14,15 +21,16 @@ package common is
 	end record;
 
 	type rect_t is record
-		x0 : unsigned(15 downto 0);
-		x1 : unsigned(15 downto 0);
-		y0 : unsigned(15 downto 0);
-		y1 : unsigned(15 downto 0);
+		x0, x1, y0, y1 : u16;
+	end record;
+	
+	type srect_t is record
+		x0, x1, y0, y1 : s16;
 	end record;
 
 	type point2d_t is record
-		x : unsigned(15 downto 0);
-		y : unsigned(15 downto 0);
+		x : s16;
+		y : s16;
 	end record;
 
 	type triangle2d_t is array (0 to 2) of point2d_t;
@@ -31,6 +39,9 @@ package common is
 		b: unsigned(15 downto 0);
 		c: unsigned(15 downto 0);
 	end record;
+	
+	type vertex_arr_t is array (natural range <>) of point2d_t;
+	type indices_arr_t is array (natural range <>) of triangle_indices_t;
 
 	-- CONSTANTS
 
@@ -69,10 +80,13 @@ package common is
 	function point2d(x : integer; y : integer) return point2d_t;
 	function idx(a : integer; b : integer; c: integer) return triangle_indices_t;
 		
-	function maximum2(x, y : unsigned) return unsigned;
-	function minimum2(x, y : unsigned) return unsigned;
-	function maximum3(x, y, z : unsigned) return unsigned;
-	function minimum3(x, y, z : unsigned) return unsigned;
+	function maximum2(x, y : signed) return signed;
+	function minimum2(x, y : signed) return signed;
+	function maximum3(x, y, z : signed) return signed;
+	function minimum3(x, y, z : signed) return signed;
+		
+	function to_u16_with_cut(s : s16) return u16;
+	function to_s16(u : u16) return s16;
 
 end package common;
 
@@ -82,7 +96,7 @@ package body common is
 
 	function point2d(x : integer; y : integer) return point2d_t is
 	begin
-		return (x => to_unsigned(x, 16), y => to_unsigned(y, 16));
+		return (x => to_signed(x, 16), y => to_signed(y, 16));
 	end function;
 	
 	function idx(a : integer; b : integer; c: integer) return triangle_indices_t is
@@ -90,7 +104,7 @@ package body common is
 		return (a => to_unsigned(a, 16), b => to_unsigned(b, 16), c => to_unsigned(c, 16));
 	end function;
 	
-	function minimum3(x, y, z : unsigned) return unsigned is
+	function minimum3(x, y, z : signed) return signed is
 	begin 
 		if x < y then
 			if x < z then return x; else return z; end if;
@@ -99,7 +113,7 @@ package body common is
 		end if;
 	end function;
 	
-	function maximum3(x, y, z : unsigned) return unsigned is
+	function maximum3(x, y, z : signed) return signed is
 	begin 
 		if x > y then
 			if x > z then return x; else return z; end if;
@@ -108,14 +122,28 @@ package body common is
 		end if;
 	end function;
 	
-	function minimum2(x, y : unsigned) return unsigned is
+	function minimum2(x, y : signed) return signed is
 	begin
 		if x < y then return x; else return y; end if;
 	end function;
 	
-	function maximum2(x, y : unsigned) return unsigned is
+	function maximum2(x, y : signed) return signed is
 	begin
 		if x > y then return x; else return y; end if;
+	end function;
+	
+	function to_u16_with_cut(s : s16) return u16 is
+	begin
+		if s < 0 then
+			return to_unsigned(0, 16);
+		else
+			return unsigned(std_logic_vector(s));
+		end if; 		
+	end function;
+	
+	function to_s16(u : u16) return s16 is
+	begin 
+		return signed(std_logic_vector(u));
 	end function;
 
 end package body;
