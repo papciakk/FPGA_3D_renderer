@@ -47,8 +47,8 @@ package common is
 
 	constant BITS_PER_PIXEL : integer := 24;
 
-	constant TILE_RES_X : integer := 200;
-	constant TILE_RES_Y : integer := 136;
+	constant TILE_RES_X : integer := 128;
+	constant TILE_RES_Y : integer := 120;
 
 	constant FULLSCREEN_RES_X : integer := 640;
 	constant FULLSCREEN_RES_Y : integer := 480;

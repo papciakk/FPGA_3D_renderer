@@ -187,14 +187,14 @@ begin
 			tilegen_pixel_color => tilegen_color_out
 		);
 		
-	tile_generator0 : entity work.tile_generator
+	tile_system0 : entity work.tile_system
 		port map(
-			tilegen_clk       => CLK_50,
+			clk               => CLK_50,
 			rst               => not rst,
-			tilegen_posx_out  => tilegen_posx_out,
-			tilegen_posy_out  => tilegen_posy_out,
-			tilegen_color_out => tilegen_color_out,
-			tilegen_enable    => tilegen_enable
+			posx_out  => tilegen_posx_out,
+			posy_out  => tilegen_posy_out,
+			color_out => tilegen_color_out,
+			put_pixel_out    => tilegen_enable
 		);
 
 	led_blinker0 : entity work.led_blinker

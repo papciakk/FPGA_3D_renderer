@@ -131,8 +131,10 @@ begin
 			when st_render =>
 				put_pixel_out_next <= '0';
 				
-				if cnty <= render_rect_latch.y1 then
+				if cnty < render_rect_latch.y1 then
 					if cntx < render_rect_latch.x1 then
+						-- TODO: sprawdziæ poprawnoœæ wyznaczania bounding box
+						
 						if 
 							cross_product_sign(cntx, cnty, triangle_latch(0), triangle_latch(1)) and 
 							cross_product_sign(cntx, cnty, triangle_latch(1), triangle_latch(2)) and 

@@ -6,12 +6,15 @@ use work.renderer_mesh.all;
 
 entity tile_generator is
 	port(
-		tilegen_clk       : in  std_logic;
-		rst               : in  std_logic;
-		tilegen_posx_out  : out unsigned(15 downto 0);
-		tilegen_posy_out  : out unsigned(15 downto 0);
-		tilegen_color_out : out color_t;
-		tilegen_enable    : out std_logic
+		clk           : in  std_logic;
+		rst           : in  std_logic;
+		posx_out      : out unsigned(15 downto 0);
+		posy_out      : out unsigned(15 downto 0);
+		color_out     : out color_t;
+		put_pixel_out : out std_logic;
+		tile_rect_in  : in  rect_t;
+		start_in      : in  std_logic;
+		ready_out     : out std_logic
 	);
 end entity tile_generator;
 
@@ -21,6 +24,8 @@ architecture bahavioral of tile_generator is
 
 	signal start_rendering, start_rendering_next : std_logic := '0';
 	signal triangle_rendered                     : std_logic;
+
+	signal ready_out_next : std_logic;
 
 	signal rand : std_logic_vector(31 downto 0);
 
@@ -33,49 +38,51 @@ begin
 
 	triangle_renderer0 : entity work.renderer_triangle
 		port map(
-			clk           => tilegen_clk,
+			clk           => clk,
 			rst           => rst,
-			tile_rect_in  => ZERO_TILE_RECT,
+			tile_rect_in  => tile_rect_in,
 			triangle_in   => triangle,
-			put_pixel_out => tilegen_enable,
-			posx_out      => tilegen_posx_out,
-			posy_out      => tilegen_posy_out,
+			put_pixel_out => put_pixel_out,
+			posx_out      => posx_out,
+			posy_out      => posy_out,
 			start_in      => start_rendering,
 			ready_out     => triangle_rendered
 		);
 
 	random0 : entity work.random
 		port map(
-			clk  => tilegen_clk,
+			clk  => clk,
 			rst  => rst,
 			rand => rand,
 			seed => (others => '0')
 		);
 
-	process(tilegen_clk, rst) is
+	process(clk, rst) is
 	begin
 		if rst = '1' then
 			state <= st_start;
-		elsif rising_edge(tilegen_clk) then
+		elsif rising_edge(clk) then
 			state                  <= state_next;
 			current_triangle_index <= current_triangle_index_next;
 			start_rendering        <= start_rendering_next;
 			triangle               <= triangle_next;
+			ready_out              <= ready_out_next;
 		end if;
 	end process;
 
-	process(state, current_triangle_index, triangle_rendered, start_rendering, triangle, rand(15 downto 8), rand(23 downto 16), rand(7 downto 0)) is
+	process(state, current_triangle_index, triangle_rendered, start_rendering, triangle, rand(15 downto 8), rand(23 downto 16), rand(7 downto 0), start_in, ready_out) is
 	begin
 		state_next                  <= state;
 		current_triangle_index_next <= current_triangle_index;
 		start_rendering_next        <= start_rendering;
 		triangle_next               <= triangle;
+		ready_out_next              <= ready_out;
 
 		case state is
 			when st_start =>
 				current_triangle_index_next <= 0;
 				start_rendering_next        <= '0';
-				state_next                  <= st_render_task;
+				state_next                  <= st_idle;
 
 			when st_render_task =>
 				start_rendering_next <= '1';
@@ -84,7 +91,7 @@ begin
 					vertices(to_integer(indices(current_triangle_index).b)),
 					vertices(to_integer(indices(current_triangle_index).c))
 				);
-				tilegen_color_out    <= (r => rand(7 downto 0), g => rand(15 downto 8), b=> rand(23 downto 16));
+				color_out            <= (r => rand(7 downto 0), g => rand(15 downto 8), b => rand(23 downto 16));
 				state_next           <= st_render_task_wait;
 
 			when st_render_task_wait =>
@@ -98,7 +105,8 @@ begin
 
 			when st_finished =>
 				if current_triangle_index = (indices'length - 1) then
-					state_next <= st_idle;
+					ready_out_next <= '1';
+					state_next     <= st_idle;
 				else
 					current_triangle_index_next <= current_triangle_index + 1;
 					start_rendering_next        <= '0';
@@ -107,7 +115,13 @@ begin
 				end if;
 
 			when st_idle =>
-				state_next <= st_idle;
+				if start_in = '1' then
+					ready_out_next              <= '0';
+					current_triangle_index_next <= 0;
+					state_next                  <= st_render_task;
+				else
+					state_next <= st_idle;
+				end if;
 		end case;
 	end process;
 
