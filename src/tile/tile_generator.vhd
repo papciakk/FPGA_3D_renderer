@@ -80,11 +80,13 @@ begin
 
 		case state is
 			when st_start =>
+				ready_out_next              <= '0';
 				current_triangle_index_next <= 0;
 				start_rendering_next        <= '0';
 				state_next                  <= st_idle;
 
 			when st_render_task =>
+				ready_out_next       <= '0';
 				start_rendering_next <= '1';
 				triangle_next        <= (
 					vertices(to_integer(indices(current_triangle_index).a)),
@@ -95,6 +97,7 @@ begin
 				state_next           <= st_render_task_wait;
 
 			when st_render_task_wait =>
+				ready_out_next       <= '0';
 				start_rendering_next <= '0';
 
 				if triangle_rendered = '1' then
@@ -104,17 +107,17 @@ begin
 				end if;
 
 			when st_finished =>
-				if current_triangle_index = (indices'length - 1) then
-					ready_out_next <= '1';
-					state_next     <= st_idle;
-				else
+				if current_triangle_index < indices'length then
 					current_triangle_index_next <= current_triangle_index + 1;
 					start_rendering_next        <= '0';
 					state_next                  <= st_render_task;
-
+				else
+					ready_out_next <= '1';
+					state_next     <= st_idle;
 				end if;
 
 			when st_idle =>
+				ready_out_next <= '0';
 				if start_in = '1' then
 					ready_out_next              <= '0';
 					current_triangle_index_next <= 0;

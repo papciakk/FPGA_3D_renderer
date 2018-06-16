@@ -18,10 +18,10 @@ architecture bahavioral of tile_system is
 
 	type state_type is (
 		st_start, st_idle, st_render_tile, st_render_tile_wait
-	);
+	, st_maliny);
 	signal state, state_next : state_type := st_start;
 
-	signal start_rendering_tile, start_rendering_tile_next : std_logic;
+	signal start_rendering_tile, start_rendering_tile_next : std_logic := '0';
 	signal tile_rendered                                   : std_logic;
 
 	function get_tile_rect(x, y : integer) return rect_t is
@@ -42,7 +42,7 @@ architecture bahavioral of tile_system is
 	--		y1 => to_unsigned(200, 16)
 	--	);
 
-	signal current_tile_rect : rect_t := get_tile_rect(0, 0);
+	signal current_tile_rect : rect_t := get_tile_rect(1, 0);
 
 begin
 
@@ -83,6 +83,7 @@ begin
 				state_next                <= st_idle;
 
 			when st_idle =>
+				start_rendering_tile_next <= '0';
 				state_next <= st_render_tile;
 
 			when st_render_tile =>
@@ -90,11 +91,15 @@ begin
 				state_next                <= st_render_tile_wait;
 
 			when st_render_tile_wait =>
+				start_rendering_tile_next <= '0';
 				if tile_rendered = '1' then
-					state_next <= st_idle;
+					state_next <= st_maliny;
 				else
 					state_next <= st_render_tile_wait;
 				end if;
+				
+			when st_maliny =>
+				state_next <= st_maliny;
 		end case;
 	end process;
 
