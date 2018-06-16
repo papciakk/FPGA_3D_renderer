@@ -42,7 +42,7 @@ architecture bahavioral of tile_system is
 	--		y1 => to_unsigned(200, 16)
 	--	);
 
-	signal current_tile_rect : rect_t := get_tile_rect(1, 0);
+	signal current_tile_rect : rect_t := get_tile_rect(0, 0);
 
 begin
 

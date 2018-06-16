@@ -199,7 +199,7 @@ begin
 
 	led_blinker0 : entity work.led_blinker
 		generic map(
-			frequency => 2              -- Hz
+			frequency => 1.0              -- Hz
 		)
 		port map(
 			clk50 => CLK_50,
