@@ -53,13 +53,13 @@ architecture RTL of renderer_triangle is
 
 	-- TRIANGLE RENDERING
 
-	signal cntx, cntx_next : s16;
-	signal cnty, cnty_next : s16;
+	signal cntx, cntx_next : s16 := X"0005";
+	signal cnty, cnty_next : s16 := X"0005";
 
 	signal put_pixel_out_next : std_logic := '0';
 	signal ready_out_next     : std_logic := '0';
 
-	signal triangle_latch, triangle_latch_next : triangle2d_t;
+	signal triangle_latch, triangle_latch_next : triangle2d_t := (point2d(0, 0), point2d(0, 0), point2d(0, 0));
 
 	function cross_product_sign(x, y : s16; p2, p3 : point2d_t) return boolean is
 	begin
@@ -92,7 +92,7 @@ begin
 		end if;
 	end process;
 
-	process(state, cntx, cnty, render_rect_latch.x0, render_rect_latch.x1, render_rect_latch.y0, render_rect_latch.y1, put_pixel_out, ready_out, start_in, render_rect_latch, tile_rect_in, triangle_in, triangle_latch, triangle_latch(0), triangle_latch(1), triangle_latch(2)) is
+	process(state, cntx, cnty, render_rect_latch.x0, render_rect_latch.x1, render_rect_latch.y0, render_rect_latch.y1, put_pixel_out, ready_out, start_in, render_rect_latch, tile_rect_in, triangle_in, triangle_latch) is
 	begin
 		state_next             <= state;
 		put_pixel_out_next     <= put_pixel_out;
@@ -105,8 +105,8 @@ begin
 		case state is
 			when st_start =>
 				put_pixel_out_next <= '0';
-				cntx_next          <= (others => '0');
-				cnty_next          <= (others => '0');
+				cntx_next          <= X"0005";
+				cnty_next          <= X"0005";
 				ready_out_next     <= '0';
 				state_next         <= st_idle;
 
@@ -131,18 +131,18 @@ begin
 			when st_render =>
 				put_pixel_out_next <= '0';
 				
-				if cnty <= render_rect_latch.y1 then
-					if cntx < render_rect_latch.x1 then
+				if cnty < render_rect_latch.y1 then
+					if cntx < render_rect_latch.x1 then						
 						if 
 							cross_product_sign(cntx, cnty, triangle_latch(0), triangle_latch(1)) and 
 							cross_product_sign(cntx, cnty, triangle_latch(1), triangle_latch(2)) and 
-							cross_product_sign(cntx, cnty, triangle_latch(2), triangle_latch(0)) 
+							cross_product_sign(cntx, cnty, triangle_latch(2), triangle_latch(0))
 						then
 							put_pixel_out_next <= '1';
 						end if;
 						cntx_next <= cntx + 1;
 					else
-						cntx_next <= (others => '0');
+						cntx_next <= render_rect_latch.x0;
 						cnty_next <= cnty + 1;
 					end if;
 				else
