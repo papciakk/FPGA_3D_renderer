@@ -53,8 +53,8 @@ architecture RTL of renderer_triangle is
 
 	-- TRIANGLE RENDERING
 
-	signal cntx, cntx_next : s16 := X"0005";
-	signal cnty, cnty_next : s16 := X"0005";
+	signal cntx, cntx_next : s16 := (others => '0');
+	signal cnty, cnty_next : s16 := (others => '0');
 
 	signal put_pixel_out_next : std_logic := '0';
 	signal ready_out_next     : std_logic := '0';
@@ -105,8 +105,8 @@ begin
 		case state is
 			when st_start =>
 				put_pixel_out_next <= '0';
-				cntx_next          <= X"0005";
-				cnty_next          <= X"0005";
+				cntx_next          <= (others => '0');
+				cnty_next          <= (others => '0');
 				ready_out_next     <= '0';
 				state_next         <= st_idle;
 
@@ -131,7 +131,7 @@ begin
 			when st_render =>
 				put_pixel_out_next <= '0';
 				
-				if cnty < render_rect_latch.y1 then
+				if cnty <= render_rect_latch.y1 then
 					if cntx < render_rect_latch.x1 then						
 						if 
 							cross_product_sign(cntx, cnty, triangle_latch(0), triangle_latch(1)) and 
