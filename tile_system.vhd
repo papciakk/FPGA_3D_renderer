@@ -95,7 +95,7 @@ begin
 		end if;
 	end process;
 
-	process(state, start_rendering_tile, tile_rendered, display_done_in, tile_ready_out) is
+	process(state, start_rendering_tile, tile_rendered, display_done_in, tile_ready_out, xxx) is
 	begin
 		start_rendering_tile_next <= start_rendering_tile;
 		tile_ready_out_next       <= tile_ready_out;
@@ -134,7 +134,7 @@ begin
 				end if;
 
 			when st_screen_ready =>				
-				if xxx < 20 then 
+				if xxx <= 0 then 
 					xxx <= xxx + 1;
 				else
 					xxx <= 0;
