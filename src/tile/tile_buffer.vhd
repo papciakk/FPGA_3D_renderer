@@ -14,7 +14,7 @@ entity tile_buffer is
 		tilegen_clk            : in  std_logic;
 		tilegen_posx           : in  unsigned(15 downto 0);
 		tilegen_posy           : in  unsigned(15 downto 0);
-		tilegen_enable         : in  std_logic;
+		tilegen_put_pixel         : in  std_logic;
 		tilegen_pixel_color    : in  color_t
 	);
 end entity tile_buffer;
@@ -41,7 +41,7 @@ begin
 			rdclock   => screen_clk,
 			wraddress => ram_addr_wr,
 			wrclock   => tilegen_clk,
-			wren      => tilegen_enable,
+			wren      => tilegen_put_pixel,
 			q         => ram_data_out_raw
 		);
 

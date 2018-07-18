@@ -54,10 +54,10 @@ architecture behavioral of snf0 is
 		st_start,
 		st_fb_init, st_fb_init_wait,
 		st_screen_write,
-		st_disp_clear,
-		st_disp_clear_wait,
-		st_wait_for_generator,
-		st_wait_for_screen,
+		st_init_tilegen, st_tilegen_wait,
+		st_disp_clear, st_disp_clear_wait,
+		st_next_tile,
+		st_screen_wait,
 		st_end
 	);
 	signal state : fsm_state_type := st_start;
@@ -100,7 +100,6 @@ architecture behavioral of snf0 is
 	signal screen_pixel_color : color_t;
 
 	signal screen_tile_rect    : rect_t;
-	signal screen_display_done : std_logic := '0';
 	signal fb_disp_window_rect : rect_t := FULLSCREEN_RECT;
 	----------------------
 
@@ -112,11 +111,13 @@ architecture behavioral of snf0 is
 	signal fb_init_done  : std_logic;
 
 	-----------------------------------------
-	signal tilegen_posx_out   : unsigned(15 downto 0);
-	signal tilegen_posy_out   : unsigned(15 downto 0);
-	signal tilegen_color_out  : color_t;
-	signal tilegen_enable     : std_logic;
-	signal tilegen_tile_ready : std_logic;
+	signal tilegen_posx_out      : unsigned(15 downto 0);
+	signal tilegen_posy_out      : unsigned(15 downto 0);
+	signal tilegen_color_out     : color_t;
+	signal tilegen_put_pixel_out : std_logic;
+	signal tilegen_ready         : std_logic;
+	signal tilegen_start         : std_logic := '0';
+	signal tilegen_tile_num_in   : integer := 0;
 
 begin
 
@@ -185,24 +186,25 @@ begin
 			screen_posy            => screen_posy,
 			screen_pixel_color_out => screen_pixel_color,
 			----------
-			tilegen_clk            => CLK_50,
+			tilegen_clk            => fb_initializer_clk,
 			tilegen_posx           => tilegen_posx_out,
 			tilegen_posy           => tilegen_posy_out,
-			tilegen_enable         => tilegen_enable,
+			tilegen_put_pixel      => tilegen_put_pixel_out,
 			tilegen_pixel_color    => tilegen_color_out
 		);
 
 	tile_system0 : entity work.tile_system
 		port map(
-			clk             => CLK_50,
-			rst             => not rst,
-			posx_out        => tilegen_posx_out,
-			posy_out        => tilegen_posy_out,
-			color_out       => tilegen_color_out,
-			put_pixel_out   => tilegen_enable,
-			tile_rect_out   => screen_tile_rect,
-			display_done_in => screen_display_done,
-			tile_ready_out  => tilegen_tile_ready
+			clk           => fb_initializer_clk,
+			rst           => not rst,
+			posx_out      => tilegen_posx_out,
+			posy_out      => tilegen_posy_out,
+			color_out     => tilegen_color_out,
+			put_pixel_out => tilegen_put_pixel_out,
+			tile_rect_out => screen_tile_rect,
+			ready_out     => tilegen_ready,
+			start_in      => tilegen_start,
+			tile_num_in   => tilegen_tile_num_in
 		);
 
 	led_blinker0 : entity work.led_blinker
@@ -210,7 +212,7 @@ begin
 			frequency => 1.0            -- Hz
 		)
 		port map(
-			clk50 => CLK_50,
+			clk50 => fb_initializer_clk,
 			rst   => not rst,
 			led   => LED(1)
 		);
@@ -224,16 +226,18 @@ begin
 	fb_op_start   <= fb_initializer_op_start when fb_initializer_enabled = '1' else fb_disp_op_start;
 	fb_op         <= fb_initializer_op when fb_initializer_enabled = '1' else fb_disp_op;
 
-	process(fb_initializer_clk, rst) is
+	process(fb_clk, rst) is
 	begin
 		if rst = '0' then
 			state <= st_start;
-		elsif rising_edge(fb_initializer_clk) then
+		elsif rising_edge(fb_clk) then
 			case state is
 				when st_start =>
-					LED(2) <= '0';
+					LED(2)                 <= '0';
 					fb_initializer_enabled <= '1';
 					fb_disp_start_write    <= '0';
+					tilegen_start          <= '0';
+					tilegen_tile_num_in    <= 0;
 					state                  <= st_fb_init;
 
 				-- INIT FRAMEBUFFER
@@ -265,37 +269,54 @@ begin
 					fb_disp_clear       <= '0';
 
 					if fb_disp_write_done = '1' then
-						state <= st_screen_write;
+						state <= st_init_tilegen;
 					else
 						state <= st_disp_clear_wait;
+					end if;
+
+				-- GENERATE TILE
+
+				when st_init_tilegen =>
+					tilegen_start <= '1';
+					state         <= st_tilegen_wait;
+
+				when st_tilegen_wait =>
+					tilegen_start <= '0';
+					if tilegen_ready = '1' then
+						state <= st_screen_write;
+					else
+						state <= st_tilegen_wait;
 					end if;
 
 				-- DISPLAY IMAGE
 
 				when st_screen_write =>
 					fb_disp_clear       <= '0';
-					screen_display_done <= '0';
 					fb_disp_start_write <= '1';
-					state               <= st_wait_for_screen;
+					state               <= st_screen_wait;
 					fb_disp_window_rect <= screen_tile_rect;
 
-				when st_wait_for_screen =>
+				when st_screen_wait =>
 					fb_disp_start_write <= '0';
-					screen_display_done <= '0';
-
 					if fb_disp_write_done = '1' then
-						state <= st_wait_for_generator;
+						state <= st_next_tile;
 					else
-						state <= st_wait_for_screen;
+						state <= st_screen_wait;
 					end if;
 
-				when st_wait_for_generator =>
-					screen_display_done <= '1';
-					if tilegen_tile_ready = '1' then
-						state <= st_screen_write;
+				-- TILE GENERATION MANAGEMENT
+
+				when st_next_tile =>
+					if tilegen_tile_num_in <= 10-1 then					
+						tilegen_tile_num_in <= tilegen_tile_num_in + 1;
+						state <= st_init_tilegen;
 					else
-						state <= st_wait_for_generator;
+						tilegen_tile_num_in <= 0;
+						state <= st_init_tilegen;
+--						state <= st_disp_clear;
 					end if;
+					
+
 				when st_end =>
 					null;
 			end case;
