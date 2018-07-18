@@ -58,8 +58,8 @@ architecture behavioral of snf0 is
 		st_disp_clear, st_disp_clear_wait,
 		st_next_tile,
 		st_screen_wait,
-		st_end
-	);
+		st_end,
+		st_tilegen_clear, st_tilegen_clear_wait);
 	signal state : fsm_state_type := st_start;
 
 	----------------------------------------
@@ -118,6 +118,10 @@ architecture behavioral of snf0 is
 	signal tilegen_ready         : std_logic;
 	signal tilegen_start         : std_logic := '0';
 	signal tilegen_tile_num_in   : integer := 0;
+
+	-----------------------------------------
+	signal tilebuf_clear      : std_logic := '0';
+	signal tilebuf_clear_done : std_logic;
 
 begin
 
@@ -190,7 +194,11 @@ begin
 			tilegen_posx           => tilegen_posx_out,
 			tilegen_posy           => tilegen_posy_out,
 			tilegen_put_pixel      => tilegen_put_pixel_out,
-			tilegen_pixel_color    => tilegen_color_out
+			tilegen_pixel_color    => tilegen_color_out,
+			----------
+			rst                    => not rst,
+			clear                  => tilebuf_clear,
+			clear_done             => tilebuf_clear_done
 		);
 
 	tile_system0 : entity work.tile_system
@@ -275,6 +283,18 @@ begin
 					end if;
 
 				-- GENERATE TILE
+				
+				when st_tilegen_clear =>
+					tilebuf_clear <= '1';
+					state <= st_tilegen_clear_wait;
+					
+				when st_tilegen_clear_wait =>
+					tilebuf_clear <= '0';
+					if tilebuf_clear_done = '1' then
+						state <= st_init_tilegen;
+					else
+						state <= st_tilegen_clear_wait;
+					end if;
 
 				when st_init_tilegen =>
 					tilegen_start <= '1';
@@ -307,15 +327,14 @@ begin
 				-- TILE GENERATION MANAGEMENT
 
 				when st_next_tile =>
-					if tilegen_tile_num_in <= 10-1 then					
+					if tilegen_tile_num_in <= 10 - 1 then
 						tilegen_tile_num_in <= tilegen_tile_num_in + 1;
-						state <= st_init_tilegen;
+						state               <= st_init_tilegen;
 					else
 						tilegen_tile_num_in <= 0;
-						state <= st_init_tilegen;
---						state <= st_disp_clear;
+						state               <= st_init_tilegen;
+						--						state <= st_disp_clear;
 					end if;
-					
 
 				when st_end =>
 					null;

@@ -21,7 +21,8 @@ end entity tile_system;
 architecture bahavioral of tile_system is
 
 	type state_type is (
-		st_start, st_idle, st_render_tile, st_render_tile_wait);
+		st_start, st_idle, st_render_tile, st_render_tile_wait
+	);
 	signal state, state_next : state_type := st_start;
 
 	signal start_rendering_tile, start_rendering_tile_next : std_logic := '0';
