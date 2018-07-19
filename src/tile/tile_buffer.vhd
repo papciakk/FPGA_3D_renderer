@@ -40,12 +40,14 @@ architecture RTL of tile_buffer is
 		st_start, st_idle, st_clear_wait
 	);
 	signal state, state_next : state_type := st_start;
+	
+	constant TILE_SIZE : integer := (TILE_RES_X) * (TILE_RES_Y+1);
 
 begin
 
-	tilegen_pixel_color_raw(7 downto 0)   <= X"F0" when clear_mode = '1' else tilegen_pixel_color.b;
-	tilegen_pixel_color_raw(15 downto 8)  <= X"F0" when clear_mode = '1' else tilegen_pixel_color.g;
-	tilegen_pixel_color_raw(23 downto 16) <= X"F0" when clear_mode = '1' else tilegen_pixel_color.r;
+	tilegen_pixel_color_raw(7 downto 0)   <= X"00" when clear_mode = '1' else tilegen_pixel_color.b;
+	tilegen_pixel_color_raw(15 downto 8)  <= X"00" when clear_mode = '1' else tilegen_pixel_color.g;
+	tilegen_pixel_color_raw(23 downto 16) <= X"00" when clear_mode = '1' else tilegen_pixel_color.r;
 
 	ram_addr_wr <= clear_addr_wr when clear_mode = '1' else std_logic_vector(to_unsigned(to_integer(tilegen_posy * TILE_RES_X + tilegen_posx), TILE_ADDR_LEN));
 	
@@ -75,7 +77,7 @@ begin
 	begin
 		if rst = '1' then
 			state <= st_start;
-		elsif falling_edge(tilegen_clk) then
+		elsif rising_edge(tilegen_clk) then
 			state         <= state_next;
 			clear_mode    <= clear_mode_next;
 			clear_addr_wr <= clear_addr_wr_next;
@@ -110,7 +112,7 @@ begin
 
 			when st_clear_wait =>
 				clear_done_next <= '0';
-				if unsigned(clear_addr_wr) < (TILE_SIZE) then
+				if unsigned(clear_addr_wr) < TILE_SIZE then
 					clear_addr_wr_next  <= std_logic_vector(unsigned(clear_addr_wr) + 1);
 					state_next <= st_clear_wait;
 				else

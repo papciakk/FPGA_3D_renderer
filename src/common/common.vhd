@@ -49,8 +49,6 @@ package common is
 
 	constant TILE_RES_X : integer := 128;
 	constant TILE_RES_Y : integer := 120;
-	
-	constant TILE_SIZE : integer := TILE_RES_X * TILE_RES_Y;
 
 	constant FULLSCREEN_RES_X : integer := 640;
 	constant FULLSCREEN_RES_Y : integer := 480;

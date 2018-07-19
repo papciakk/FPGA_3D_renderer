@@ -239,4 +239,5 @@ set_global_assignment -name VHDL_FILE tile_system.vhd
 set_global_assignment -name QIP_FILE src/generated/tile_ram.qip
 set_global_assignment -name SIGNALTAP_FILE output_files/stp1.stp
 set_global_assignment -name QIP_FILE src/generated/pll.qip
+set_global_assignment -name CDF_FILE output_files/snf0.cdf
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
