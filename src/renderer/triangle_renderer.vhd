@@ -26,9 +26,9 @@ architecture RTL of renderer_triangle is
 	function get_triangle_bounding_box(triangle : triangle2d_t) return srect_t is
 	begin
 		return (
-			x0 => minimum3(triangle(0).x, triangle(1).x, triangle(2).x), 
-			y0 => minimum3(triangle(0).y, triangle(1).y, triangle(2).y), 
-			x1 => maximum3(triangle(0).x, triangle(1).x, triangle(2).x), 
+			x0 => minimum3(triangle(0).x, triangle(1).x, triangle(2).x),
+			y0 => minimum3(triangle(0).y, triangle(1).y, triangle(2).y),
+			x1 => maximum3(triangle(0).x, triangle(1).x, triangle(2).x),
 			y1 => maximum3(triangle(0).y, triangle(1).y, triangle(2).y)
 		);
 	end function;
@@ -53,8 +53,8 @@ architecture RTL of renderer_triangle is
 
 	-- TRIANGLE RENDERING
 
-	signal cntx, cntx_next : s16 := X"0005";
-	signal cnty, cnty_next : s16 := X"0005";
+	signal cntx, cntx_next : s16 := (others => '0');
+	signal cnty, cnty_next : s16 := (others => '0');
 
 	signal put_pixel_out_next : std_logic := '0';
 	signal ready_out_next     : std_logic := '0';
@@ -104,11 +104,12 @@ begin
 
 		case state is
 			when st_start =>
-				put_pixel_out_next <= '0';
-				cntx_next          <= X"0005";
-				cnty_next          <= X"0005";
-				ready_out_next     <= '0';
-				state_next         <= st_idle;
+				put_pixel_out_next  <= '0';
+				cntx_next           <= (others => '0');
+				cnty_next           <= (others => '0');
+				ready_out_next      <= '0';
+				triangle_latch_next <= (point2d(0, 0), point2d(0, 0), point2d(0, 0));
+				state_next          <= st_idle;
 
 			when st_idle =>
 				put_pixel_out_next <= '0';
@@ -130,14 +131,10 @@ begin
 
 			when st_render =>
 				put_pixel_out_next <= '0';
-				
-				if cnty < render_rect_latch.y1 then
-					if cntx < render_rect_latch.x1 then						
-						if 
-							cross_product_sign(cntx, cnty, triangle_latch(0), triangle_latch(1)) and 
-							cross_product_sign(cntx, cnty, triangle_latch(1), triangle_latch(2)) and 
-							cross_product_sign(cntx, cnty, triangle_latch(2), triangle_latch(0))
-						then
+
+				if cnty <= render_rect_latch.y1 then
+					if cntx < render_rect_latch.x1 then
+						if cross_product_sign(cntx, cnty, triangle_latch(0), triangle_latch(1)) and cross_product_sign(cntx, cnty, triangle_latch(1), triangle_latch(2)) and cross_product_sign(cntx, cnty, triangle_latch(2), triangle_latch(0)) then
 							put_pixel_out_next <= '1';
 						end if;
 						cntx_next <= cntx + 1;
@@ -150,7 +147,6 @@ begin
 					put_pixel_out_next <= '0';
 					state_next         <= st_idle;
 				end if;
-				
 
 			when st_finished =>
 				ready_out_next     <= '1';
@@ -158,7 +154,7 @@ begin
 				cntx_next          <= (others => '0');
 				cnty_next          <= (others => '0');
 
-				state_next <= st_idle;
+				state_next <= st_start;
 		end case;
 	end process;
 

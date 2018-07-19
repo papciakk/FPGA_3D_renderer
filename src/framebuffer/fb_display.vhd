@@ -290,7 +290,7 @@ begin
 				else
 					write_done_next <= '1';
 					clearing_next   <= '0';
-					state_next      <= st_idle;
+					state_next      <= st_start;
 				end if;
 
 			when st_write_pixel_data_wait =>

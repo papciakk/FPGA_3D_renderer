@@ -7,44 +7,44 @@ use work.pll;
 
 entity snf0 is
 	port(
-		CLK_50         : in    std_logic;
---		CLK_50_2       : in    std_logic;
---		PS2_CLK        : inout std_logic;
---		PS2_DATA       : inout std_logic;
---		UART_RXD       : in    std_logic;
---		UART_TXD       : out   std_logic;
---		SRAM_CLK       : out   std_logic;
---		SRAM_ADDR      : out   std_logic_vector(18 downto 0);
---		SRAM_DQ        : inout std_logic_vector(31 downto 0);
---		SRAM_PAR       : inout std_logic_vector(3 downto 0);
---		SRAM_MODE      : out   std_logic;
---		SRAM_ADSC_n    : out   std_logic;
---		SRAM_ADSP_n    : out   std_logic;
---		SRAM_ADV_n     : out   std_logic;
---		SRAM_BWE_n     : out   std_logic;
---		SRAM_CE2_n     : out   std_logic;
---		SRAM_CE_n      : out   std_logic;
---		SRAM_OE_n      : out   std_logic;
---		SRAM_ZZ        : out   std_logic;
---		VGA1_PIXEL_CLK : in    std_logic;
-		VGA1_CS_n      : out   std_logic;
-		VGA1_DC_n      : out   std_logic;
-		VGA1_RD_n      : out   std_logic;
-		VGA1_WR_n      : out   std_logic;
-		VGA1_RESET_n   : out   std_logic;
---		VGA1_TE        : in    std_logic;
-		VGA1_R         : inout std_logic_vector(7 downto 0);
-		VGA1_G         : out   std_logic_vector(7 downto 0);
-		VGA1_B         : out   std_logic_vector(7 downto 0);
---		VGA2_R         : out   std_logic;
---		VGA2_G         : out   std_logic;
---		VGA2_B         : out   std_logic;
---		VGA2_VSync     : out   std_logic;
---		VGA2_HSync     : out   std_logic;
-		BTN            : in    std_logic_vector(1 downto 0);
-		LED            : out   std_logic_vector(2 downto 0)
---		GPIO           : inout std_logic_vector(0 to 3);
---		GPI            : in    std_logic_vector(0 to 7)
+		CLK_50       : in    std_logic;
+		--		CLK_50_2       : in    std_logic;
+		--		PS2_CLK        : inout std_logic;
+		--		PS2_DATA       : inout std_logic;
+		--		UART_RXD       : in    std_logic;
+		--		UART_TXD       : out   std_logic;
+		--		SRAM_CLK       : out   std_logic;
+		--		SRAM_ADDR      : out   std_logic_vector(18 downto 0);
+		--		SRAM_DQ        : inout std_logic_vector(31 downto 0);
+		--		SRAM_PAR       : inout std_logic_vector(3 downto 0);
+		--		SRAM_MODE      : out   std_logic;
+		--		SRAM_ADSC_n    : out   std_logic;
+		--		SRAM_ADSP_n    : out   std_logic;
+		--		SRAM_ADV_n     : out   std_logic;
+		--		SRAM_BWE_n     : out   std_logic;
+		--		SRAM_CE2_n     : out   std_logic;
+		--		SRAM_CE_n      : out   std_logic;
+		--		SRAM_OE_n      : out   std_logic;
+		--		SRAM_ZZ        : out   std_logic;
+		--		VGA1_PIXEL_CLK : in    std_logic;
+		VGA1_CS_n    : out   std_logic;
+		VGA1_DC_n    : out   std_logic;
+		VGA1_RD_n    : out   std_logic;
+		VGA1_WR_n    : out   std_logic;
+		VGA1_RESET_n : out   std_logic;
+		--		VGA1_TE        : in    std_logic;
+		VGA1_R       : inout std_logic_vector(7 downto 0);
+		VGA1_G       : out   std_logic_vector(7 downto 0);
+		VGA1_B       : out   std_logic_vector(7 downto 0);
+		--		VGA2_R         : out   std_logic;
+		--		VGA2_G         : out   std_logic;
+		--		VGA2_B         : out   std_logic;
+		--		VGA2_VSync     : out   std_logic;
+		--		VGA2_HSync     : out   std_logic;
+		BTN          : in    std_logic_vector(1 downto 0);
+		LED          : out   std_logic_vector(2 downto 0)
+		--		GPIO           : inout std_logic_vector(0 to 3);
+		--		GPI            : in    std_logic_vector(0 to 7)
 	);
 
 end snf0;
@@ -53,12 +53,13 @@ architecture behavioral of snf0 is
 	type fsm_state_type is (
 		st_start,
 		st_fb_init, st_fb_init_wait,
-		st_disp_write,
-		st_disp_wait,
+		st_screen_write,
+		st_init_tilegen, st_tilegen_wait,
+		st_disp_clear, st_disp_clear_wait,
+		st_next_tile,
+		st_screen_wait,
 		st_end,
-		st_disp_clear,
-		st_disp_clear_wait
-	);
+		st_tilegen_clear, st_tilegen_clear_wait);
 	signal state : fsm_state_type := st_start;
 
 	----------------------------------------
@@ -94,9 +95,11 @@ architecture behavioral of snf0 is
 	signal fb_disp_write_done  : std_logic;
 
 	-- framebuffer display out position, color input and window
-	signal screen_posx         : unsigned(15 downto 0);
-	signal screen_posy         : unsigned(15 downto 0);
-	signal screen_pixel_color  : color_t;
+	signal screen_posx        : unsigned(15 downto 0);
+	signal screen_posy        : unsigned(15 downto 0);
+	signal screen_pixel_color : color_t;
+
+	signal screen_tile_rect    : rect_t;
 	signal fb_disp_window_rect : rect_t := FULLSCREEN_RECT;
 	----------------------
 
@@ -106,12 +109,19 @@ architecture behavioral of snf0 is
 
 	signal fb_init_start : std_logic := '0';
 	signal fb_init_done  : std_logic;
-	
+
 	-----------------------------------------
-	signal tilegen_posx_out : unsigned(15 downto 0);
-	signal tilegen_posy_out : unsigned(15 downto 0);
-	signal tilegen_color_out : color_t;
-	signal tilegen_enable : std_logic;
+	signal tilegen_posx_out      : unsigned(15 downto 0);
+	signal tilegen_posy_out      : unsigned(15 downto 0);
+	signal tilegen_color_out     : color_t;
+	signal tilegen_put_pixel_out : std_logic;
+	signal tilegen_ready         : std_logic;
+	signal tilegen_start         : std_logic := '0';
+	signal tilegen_tile_num_in   : integer := 0;
+
+	-----------------------------------------
+	signal tilebuf_clear      : std_logic := '0';
+	signal tilebuf_clear_done : std_logic;
 
 begin
 
@@ -180,35 +190,42 @@ begin
 			screen_posy            => screen_posy,
 			screen_pixel_color_out => screen_pixel_color,
 			----------
-			tilegen_clk => CLK_50,
-			tilegen_posx => tilegen_posx_out,
-			tilegen_posy => tilegen_posy_out,
-			tilegen_enable => tilegen_enable,
-			tilegen_pixel_color => tilegen_color_out
+			tilegen_clk            => fb_initializer_clk,
+			tilegen_posx           => tilegen_posx_out,
+			tilegen_posy           => tilegen_posy_out,
+			tilegen_put_pixel      => tilegen_put_pixel_out,
+			tilegen_pixel_color    => tilegen_color_out,
+			----------
+			rst                    => not rst,
+			clear                  => tilebuf_clear,
+			clear_done             => tilebuf_clear_done
 		);
-		
+
 	tile_system0 : entity work.tile_system
 		port map(
-			clk               => CLK_50,
-			rst               => not rst,
-			posx_out  => tilegen_posx_out,
-			posy_out  => tilegen_posy_out,
-			color_out => tilegen_color_out,
-			put_pixel_out    => tilegen_enable
+			clk           => fb_initializer_clk,
+			rst           => not rst,
+			posx_out      => tilegen_posx_out,
+			posy_out      => tilegen_posy_out,
+			color_out     => tilegen_color_out,
+			put_pixel_out => tilegen_put_pixel_out,
+			tile_rect_out => screen_tile_rect,
+			ready_out     => tilegen_ready,
+			start_in      => tilegen_start,
+			tile_num_in   => tilegen_tile_num_in
 		);
 
 	led_blinker0 : entity work.led_blinker
 		generic map(
-			frequency => 1.0              -- Hz
+			frequency => 1.0            -- Hz
 		)
 		port map(
-			clk50 => CLK_50,
+			clk50 => fb_initializer_clk,
 			rst   => not rst,
 			led   => LED(1)
 		);
 
 	LED(0) <= rst;
-	LED(2) <= '0';
 
 	rst <= BTN(0);
 
@@ -217,15 +234,18 @@ begin
 	fb_op_start   <= fb_initializer_op_start when fb_initializer_enabled = '1' else fb_disp_op_start;
 	fb_op         <= fb_initializer_op when fb_initializer_enabled = '1' else fb_disp_op;
 
-	process(fb_initializer_clk, rst) is
+	process(fb_clk, rst) is
 	begin
 		if rst = '0' then
 			state <= st_start;
-		elsif rising_edge(fb_initializer_clk) then
+		elsif rising_edge(fb_clk) then
 			case state is
 				when st_start =>
+					LED(2)                 <= '0';
 					fb_initializer_enabled <= '1';
 					fb_disp_start_write    <= '0';
+					tilegen_start          <= '0';
+					tilegen_tile_num_in    <= 0;
 					state                  <= st_fb_init;
 
 				-- INIT FRAMEBUFFER
@@ -257,33 +277,67 @@ begin
 					fb_disp_clear       <= '0';
 
 					if fb_disp_write_done = '1' then
-						state <= st_disp_write;
+						state <= st_tilegen_clear;
 					else
 						state <= st_disp_clear_wait;
 					end if;
 
-				-- DISPLAY IMAGE
-
-				when st_disp_write =>
-					fb_disp_clear       <= '0';
-					fb_disp_start_write <= '1';
-					state               <= st_disp_wait;
-					fb_disp_window_rect <= ZERO_TILE_RECT;
-
-				when st_disp_wait =>
-					fb_disp_start_write <= '0';
-
-					if fb_disp_write_done = '1' then
-						state <= st_end;
+				-- GENERATE TILE
+				
+				when st_tilegen_clear =>
+					tilebuf_clear <= '1';
+					state <= st_tilegen_clear_wait;
+					
+				when st_tilegen_clear_wait =>
+					tilebuf_clear <= '0';
+					if tilebuf_clear_done = '1' then
+						state <= st_init_tilegen;
 					else
-						state <= st_disp_wait;
+						state <= st_tilegen_clear_wait;
 					end if;
 
-				-- END
+				when st_init_tilegen =>
+					tilegen_start <= '1';
+					state         <= st_tilegen_wait;
+
+				when st_tilegen_wait =>
+					tilegen_start <= '0';
+					if tilegen_ready = '1' then
+						state <= st_screen_write;
+					else
+						state <= st_tilegen_wait;
+					end if;
+
+				-- DISPLAY IMAGE
+
+				when st_screen_write =>
+					fb_disp_clear       <= '0';
+					fb_disp_start_write <= '1';
+					state               <= st_screen_wait;
+					fb_disp_window_rect <= screen_tile_rect;
+
+				when st_screen_wait =>
+					fb_disp_start_write <= '0';
+					if fb_disp_write_done = '1' then
+						state <= st_next_tile;
+					else
+						state <= st_screen_wait;
+					end if;
+
+				-- TILE GENERATION MANAGEMENT
+
+				when st_next_tile =>
+					if tilegen_tile_num_in <= 20 - 2 then
+						tilegen_tile_num_in <= tilegen_tile_num_in + 1;
+						state               <= st_tilegen_clear;
+					else
+						tilegen_tile_num_in <= 0;
+						state               <= st_tilegen_clear;
+						--						state <= st_disp_clear;
+					end if;
 
 				when st_end =>
-					--state <= st_disp_write;
-					state <= st_end;
+					null;
 			end case;
 		end if;
 	end process;
