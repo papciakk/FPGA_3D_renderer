@@ -30,9 +30,11 @@ architecture RTL of tile_buffer is
 	signal tilegen_pixel_color_raw : std_logic_vector((BITS_PER_PIXEL - 1) DOWNTO 0);
 	signal ram_addr_wr             : std_logic_vector((TILE_ADDR_LEN - 1) DOWNTO 0);
 
-	signal clear_addr_wr, clear_addr_wr_next : std_logic_vector((TILE_ADDR_LEN - 1) DOWNTO 0);
+	signal clear_addr_wr, clear_addr_wr_next : std_logic_vector((TILE_ADDR_LEN - 1) DOWNTO 0) := (others => '0');
 	signal clear_mode, clear_mode_next       : std_logic := '0';
-	signal clear_done_next                   : std_logic;
+	signal clear_done_next                   : std_logic := '0';
+	
+	signal wren : std_logic;
 
 	type state_type is (
 		st_start, st_idle, st_clear_wait
@@ -46,6 +48,8 @@ begin
 	tilegen_pixel_color_raw(23 downto 16) <= X"F0" when clear_mode = '1' else tilegen_pixel_color.r;
 
 	ram_addr_wr <= clear_addr_wr when clear_mode = '1' else std_logic_vector(to_unsigned(to_integer(tilegen_posy * TILE_RES_X + tilegen_posx), TILE_ADDR_LEN));
+	
+	wren <= '1' when clear_mode = '1' else tilegen_put_pixel;
 
 	tile_ram0 : entity work.tile_ram
 		port map(
@@ -54,7 +58,7 @@ begin
 			rdclock   => screen_clk,
 			wraddress => ram_addr_wr,
 			wrclock   => tilegen_clk,
-			wren      => tilegen_put_pixel,
+			wren      => wren,
 			q         => ram_data_out_raw
 		);
 
@@ -89,23 +93,24 @@ begin
 		case state is
 			when st_start =>
 				clear_mode_next <= '0';
-				clear_done_next <= '1';
+				clear_done_next <= '0';
+				clear_addr_wr_next <= (others => '0');
 				state_next      <= st_idle;
 
 			when st_idle =>
+					clear_done_next <= '0';
 				if clear = '1' then
 					clear_mode_next    <= '1';
-					clear_done_next    <= '0';
 					clear_addr_wr_next <= (others => '0');
 					state_next         <= st_clear_wait;
 				else
 					clear_mode_next <= '0';
-					clear_done_next <= '0';
 					state_next      <= st_idle;
 				end if;
 
 			when st_clear_wait =>
-				if unsigned(clear_addr_wr) < (TILE_SIZE - 1) then
+				clear_done_next <= '0';
+				if unsigned(clear_addr_wr) < (TILE_SIZE) then
 					clear_addr_wr_next  <= std_logic_vector(unsigned(clear_addr_wr) + 1);
 					state_next <= st_clear_wait;
 				else

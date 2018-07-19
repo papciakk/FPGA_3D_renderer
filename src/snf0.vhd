@@ -277,7 +277,7 @@ begin
 					fb_disp_clear       <= '0';
 
 					if fb_disp_write_done = '1' then
-						state <= st_init_tilegen;
+						state <= st_tilegen_clear;
 					else
 						state <= st_disp_clear_wait;
 					end if;
@@ -327,12 +327,12 @@ begin
 				-- TILE GENERATION MANAGEMENT
 
 				when st_next_tile =>
-					if tilegen_tile_num_in <= 10 - 1 then
+					if tilegen_tile_num_in <= 10 - 2 then
 						tilegen_tile_num_in <= tilegen_tile_num_in + 1;
-						state               <= st_init_tilegen;
+						state               <= st_tilegen_clear;
 					else
 						tilegen_tile_num_in <= 0;
-						state               <= st_init_tilegen;
+						state               <= st_tilegen_clear;
 						--						state <= st_disp_clear;
 					end if;
 

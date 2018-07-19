@@ -126,7 +126,7 @@ begin
 				start_rendering_tile_next <= '0';
 				if tile_rendered = '1' then
 					ready_out_next <= '1';
-					state_next     <= st_idle;
+					state_next     <= st_start;
 				else
 					state_next <= st_render_tile_wait;
 				end if;

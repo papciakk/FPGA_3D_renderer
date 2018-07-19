@@ -115,7 +115,7 @@ begin
 					state_next                  <= st_render_task;
 				else
 					ready_out_next <= '1';
-					state_next     <= st_idle;
+					state_next     <= st_start;
 				end if;
 
 			when st_idle =>
