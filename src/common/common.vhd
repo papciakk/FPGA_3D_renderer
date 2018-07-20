@@ -32,15 +32,25 @@ package common is
 		x : s16;
 		y : s16;
 	end record;
+	
+	type point3d_t is record
+		x : s16;
+		y : s16;
+		z : s16;
+	end record;
 
 	type triangle2d_t is array (0 to 2) of point2d_t;
+	type triangle3d_t is array (0 to 2) of point3d_t;
+	
 	type triangle_indices_t is record
 		a: unsigned(15 downto 0);
 		b: unsigned(15 downto 0);
 		c: unsigned(15 downto 0);
 	end record;
 	
-	type vertex_arr_t is array (natural range <>) of point2d_t;
+	type vertex_arr_2d_t is array (natural range <>) of point2d_t;
+	type vertex_arr_3d_t is array (natural range <>) of point3d_t;
+	
 	type indices_arr_t is array (natural range <>) of triangle_indices_t;
 
 	-- CONSTANTS
@@ -78,6 +88,7 @@ package common is
 	-- FUNCTIONS
 	
 	function point2d(x : integer; y : integer) return point2d_t;
+	function point3d(x : integer; y : integer; z: integer) return point3d_t;
 	function idx(a : integer; b : integer; c: integer) return triangle_indices_t;
 		
 	function maximum2(x, y : signed) return signed;
@@ -97,6 +108,11 @@ package body common is
 	function point2d(x : integer; y : integer) return point2d_t is
 	begin
 		return (x => to_signed(x, 16), y => to_signed(y, 16));
+	end function;
+	
+	function point3d(x : integer; y : integer; z: integer) return point3d_t is
+	begin
+		return (x => to_signed(x, 16), y => to_signed(y, 16), z => to_signed(z, 16));
 	end function;
 	
 	function idx(a : integer; b : integer; c: integer) return triangle_indices_t is

@@ -89,12 +89,17 @@ begin
 				ready_out_next       <= '0';
 				start_rendering_next <= '1';
 				triangle_next        <= (
-					vertices(to_integer(indices(current_triangle_index).a)),
-					vertices(to_integer(indices(current_triangle_index).b)),
-					vertices(to_integer(indices(current_triangle_index).c))
+					(x => vertices(to_integer(indices(current_triangle_index).a)).x, y => vertices(to_integer(indices(current_triangle_index).a)).z),
+					(x => vertices(to_integer(indices(current_triangle_index).b)).x, y => vertices(to_integer(indices(current_triangle_index).b)).z),
+					(x => vertices(to_integer(indices(current_triangle_index).c)).x, y => vertices(to_integer(indices(current_triangle_index).c)).z)
 				);
 
-				color_out <= (r => rand(7 downto 0), g => rand(15 downto 8), b => rand(23 downto 16));
+				
+				color_out <= (
+					r => std_logic_vector(vertices(to_integer(indices(current_triangle_index).a)).y(7 downto 0)), 
+					g => std_logic_vector(vertices(to_integer(indices(current_triangle_index).a)).y(7 downto 0)),
+					b => std_logic_vector(vertices(to_integer(indices(current_triangle_index).a)).y(7 downto 0))
+				);
 
 				state_next <= st_render_task_wait;
 
