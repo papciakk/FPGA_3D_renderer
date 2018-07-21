@@ -19,7 +19,7 @@ entity tile_generator is
 end entity tile_generator;
 
 architecture bahavioral of tile_generator is
-	signal trianglegen_triangle, triangle_next                 : triangle2d_t;
+	signal triangle, triangle_next                             : triangle2d_t;
 	signal current_triangle_index, current_triangle_index_next : integer := 0;
 
 	signal start_rendering, start_rendering_next : std_logic := '0';
@@ -34,6 +34,9 @@ architecture bahavioral of tile_generator is
 	);
 	signal state, state_next : state_type := st_start;
 
+	signal area, area_next     : s32;
+	signal depths, depths_next : point3d_t;
+
 begin
 
 	triangle_renderer0 : entity work.renderer_triangle
@@ -41,12 +44,15 @@ begin
 			clk           => clk,
 			rst           => rst,
 			tile_rect_in  => tile_rect_in,
-			triangle_in   => trianglegen_triangle,
+			triangle_in   => triangle,
 			put_pixel_out => trianglegen_put_pixel,
 			posx_out      => trianglegen_posx_out,
 			posy_out      => trianglegen_posy_out,
 			start_in      => start_rendering,
-			ready_out     => trianglegen_ready
+			ready_out     => trianglegen_ready,
+			area_in       => area,
+			depths_in     => depths,
+			color_out     => color_out
 		);
 
 	random0 : entity work.random
@@ -65,18 +71,25 @@ begin
 			state                  <= state_next;
 			current_triangle_index <= current_triangle_index_next;
 			start_rendering        <= start_rendering_next;
-			trianglegen_triangle   <= triangle_next;
+			triangle               <= triangle_next;
 			ready_out              <= ready_out_next;
+			area                   <= area_next;
+			depths                 <= depths_next;
+
 		end if;
 	end process;
 
-	process(state, current_triangle_index, trianglegen_ready, start_rendering, trianglegen_triangle, rand(15 downto 8), rand(23 downto 16), rand(7 downto 0), start_in, ready_out) is
+	process(state, current_triangle_index, trianglegen_ready, start_rendering, triangle, start_in, ready_out, area, depths) is
+		variable v1, v2, v3 : point3d_t;
+		variable area_v     : s32;
 	begin
 		state_next                  <= state;
 		current_triangle_index_next <= current_triangle_index;
 		start_rendering_next        <= start_rendering;
-		triangle_next               <= trianglegen_triangle;
+		triangle_next               <= triangle;
 		ready_out_next              <= ready_out;
+		area_next                   <= area;
+		depths_next                 <= depths;
 
 		case state is
 			when st_start =>
@@ -86,22 +99,34 @@ begin
 				state_next                  <= st_idle;
 
 			when st_render_task =>
-				ready_out_next       <= '0';
-				start_rendering_next <= '1';
-				triangle_next        <= (
-					(x => vertices(to_integer(indices(current_triangle_index).a)).x, y => vertices(to_integer(indices(current_triangle_index).a)).z),
-					(x => vertices(to_integer(indices(current_triangle_index).b)).x, y => vertices(to_integer(indices(current_triangle_index).b)).z),
-					(x => vertices(to_integer(indices(current_triangle_index).c)).x, y => vertices(to_integer(indices(current_triangle_index).c)).z)
-				);
+				v1 := vertices(to_integer(indices(current_triangle_index).a));
+				v2 := vertices(to_integer(indices(current_triangle_index).b));
+				v3 := vertices(to_integer(indices(current_triangle_index).c));
 
-				
-				color_out <= (
-					r => std_logic_vector(vertices(to_integer(indices(current_triangle_index).a)).y(7 downto 0)), 
-					g => std_logic_vector(vertices(to_integer(indices(current_triangle_index).a)).y(7 downto 0)),
-					b => std_logic_vector(vertices(to_integer(indices(current_triangle_index).a)).y(7 downto 0))
-				);
+				area_v := (v1.x - v2.x) * (v3.z - v2.z) - (v1.z - v2.z) * (v3.x - v2.x);
 
-				state_next <= st_render_task_wait;
+				if area_v > 0 then      -- backface culling - ccw mode
+					triangle_next <= (
+						(x => v1.x, y => v1.z),
+						(x => v2.x, y => v2.z),
+						(x => v3.x, y => v3.z)
+					);
+
+					area_next   <= area_v;
+					depths_next <= point3d(v1.y, v2.y, v3.y);
+
+					--					color_out <= (
+					--						r => std_logic_vector(v2.y(7 downto 0)),
+					--						g => std_logic_vector(v2.y(7 downto 0)),
+					--						b => std_logic_vector(v2.y(7 downto 0))
+					--					);
+
+					ready_out_next       <= '0';
+					start_rendering_next <= '1';
+					state_next           <= st_render_task_wait;
+				else
+					state_next <= st_finished;
+				end if;
 
 			when st_render_task_wait =>
 				ready_out_next       <= '0';

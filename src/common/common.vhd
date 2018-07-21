@@ -6,7 +6,7 @@ use ieee.math_real.all;
 package common is
 
 	-- TYPEDEFS
-	
+
 	subtype u16 is unsigned(15 downto 0);
 	subtype s16 is signed(15 downto 0);
 	subtype u32 is unsigned(31 downto 0);
@@ -23,7 +23,7 @@ package common is
 	type rect_t is record
 		x0, x1, y0, y1 : u16;
 	end record;
-	
+
 	type srect_t is record
 		x0, x1, y0, y1 : s16;
 	end record;
@@ -32,7 +32,7 @@ package common is
 		x : s16;
 		y : s16;
 	end record;
-	
+
 	type point3d_t is record
 		x : s16;
 		y : s16;
@@ -41,16 +41,16 @@ package common is
 
 	type triangle2d_t is array (0 to 2) of point2d_t;
 	type triangle3d_t is array (0 to 2) of point3d_t;
-	
+
 	type triangle_indices_t is record
-		a: unsigned(15 downto 0);
-		b: unsigned(15 downto 0);
-		c: unsigned(15 downto 0);
+		a : unsigned(15 downto 0);
+		b : unsigned(15 downto 0);
+		c : unsigned(15 downto 0);
 	end record;
-	
+
 	type vertex_arr_2d_t is array (natural range <>) of point2d_t;
 	type vertex_arr_3d_t is array (natural range <>) of point3d_t;
-	
+
 	type indices_arr_t is array (natural range <>) of triangle_indices_t;
 
 	-- CONSTANTS
@@ -84,22 +84,23 @@ package common is
 	constant COLOR_RED   : color_t := (r => X"FF", others => X"00");
 	constant COLOR_GREEN : color_t := (g => X"FF", others => X"00");
 	constant COLOR_BLUE  : color_t := (b => X"FF", others => X"00");
-	
+
 	-- FUNCTIONS
-	
+
 	function point2d(x : integer; y : integer) return point2d_t;
-	function point3d(x : integer; y : integer; z: integer) return point3d_t;
-	function idx(a : integer; b : integer; c: integer) return triangle_indices_t;
-		
+	function point3d(x : integer; y : integer; z : integer) return point3d_t;
+	function point3d(x, y, z : signed) return point3d_t;
+	function idx(a : integer; b : integer; c : integer) return triangle_indices_t;
+
 	function maximum2(x, y : signed) return signed;
 	function minimum2(x, y : signed) return signed;
 	function maximum3(x, y, z : signed) return signed;
 	function minimum3(x, y, z : signed) return signed;
-		
+
 	function to_u16_with_cut(s : s16) return u16;
 	function to_s16(u : u16) return s16;
 
-end package common;
+	end package common;
 
 package body common is
 
@@ -113,6 +114,11 @@ package body common is
 	function point3d(x : integer; y : integer; z: integer) return point3d_t is
 	begin
 		return (x => to_signed(x, 16), y => to_signed(y, 16), z => to_signed(z, 16));
+	end function;
+	
+	function point3d(x, y, z : signed) return point3d_t is
+	begin
+		return (x => x, y => y, z => z);
 	end function;
 	
 	function idx(a : integer; b : integer; c: integer) return triangle_indices_t is
