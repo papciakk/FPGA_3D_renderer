@@ -36,6 +36,7 @@ architecture bahavioral of tile_generator is
 
 	signal area, area_next     : s32;
 	signal depths, depths_next : point3d_t;
+	signal colors, colors_next  : triangle_colors_t;
 
 begin
 
@@ -52,6 +53,7 @@ begin
 			ready_out     => trianglegen_ready,
 			area_in       => area,
 			depths_in     => depths,
+			colors_in     => colors,
 			color_out     => color_out
 		);
 
@@ -75,12 +77,13 @@ begin
 			ready_out              <= ready_out_next;
 			area                   <= area_next;
 			depths                 <= depths_next;
+			colors                 <= colors_next;
 
 		end if;
 	end process;
 
-	process(state, current_triangle_index, trianglegen_ready, start_rendering, triangle, start_in, ready_out, area, depths) is
-		variable v1, v2, v3 : point3d_t;
+	process(state, current_triangle_index, trianglegen_ready, start_rendering, triangle, start_in, ready_out, area, depths, colors) is
+		variable v1, v2, v3 : vertex_attr_t;
 		variable area_v     : s32;
 	begin
 		state_next                  <= state;
@@ -90,6 +93,7 @@ begin
 		ready_out_next              <= ready_out;
 		area_next                   <= area;
 		depths_next                 <= depths;
+		colors_next                 <= colors;
 
 		case state is
 			when st_start =>
@@ -103,30 +107,36 @@ begin
 				v2 := vertices(to_integer(indices(current_triangle_index).b));
 				v3 := vertices(to_integer(indices(current_triangle_index).c));
 
-				area_v := (v1.x - v2.x) * (v3.z - v2.z) - (v1.z - v2.z) * (v3.x - v2.x);
+				area_v := (v1.pos.x - v2.pos.x) * (v3.pos.z - v2.pos.z) - (v1.pos.z - v2.pos.z) * (v3.pos.x - v2.pos.x);
 
-				if area_v > 0 then      -- backface culling - ccw mode
+--				if area_v > 0 then      -- backface culling - ccw mode
 					triangle_next <= (
-						(x => v1.x, y => v1.z),
-						(x => v2.x, y => v2.z),
-						(x => v3.x, y => v3.z)
+						(x => v1.pos.x, y => v1.pos.z),
+						(x => v2.pos.x, y => v2.pos.z),
+						(x => v3.pos.x, y => v3.pos.z)
 					);
 
 					area_next   <= area_v;
-					depths_next <= point3d(v1.y, v2.y, v3.y);
+					depths_next <= point3d(v1.pos.y, v2.pos.y, v3.pos.y);
+					colors_next <= (
+						color(v1.normal.x, v1.normal.y, v1.normal.z),
+						color(v2.normal.x, v2.normal.y, v2.normal.z),
+						color(v3.normal.x, v3.normal.y, v3.normal.z)
+						
+					);
 
-					--					color_out <= (
-					--						r => std_logic_vector(v2.y(7 downto 0)),
-					--						g => std_logic_vector(v2.y(7 downto 0)),
-					--						b => std_logic_vector(v2.y(7 downto 0))
-					--					);
+--					color_out <= (
+--						r => std_logic_vector(v2.normal.x(7 downto 0)),
+--						g => std_logic_vector(v2.normal.y(7 downto 0)),
+--						b => std_logic_vector(v2.normal.z(7 downto 0))
+--					);
 
 					ready_out_next       <= '0';
 					start_rendering_next <= '1';
 					state_next           <= st_render_task_wait;
-				else
-					state_next <= st_finished;
-				end if;
+--				else
+--					state_next <= st_finished;
+--				end if;
 
 			when st_render_task_wait =>
 				ready_out_next       <= '0';

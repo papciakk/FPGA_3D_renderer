@@ -185,20 +185,20 @@ begin
 
 	tile_buffer0 : entity work.tile_buffer
 		port map(
-			screen_clk             => fb_clk,
-			screen_posx            => screen_posx,
-			screen_posy            => screen_posy,
-			screen_pixel_color_out => screen_pixel_color,
+			screen_clk        => fb_clk,
+			screen_posx       => screen_posx,
+			screen_posy       => screen_posy,
+			color_out         => screen_pixel_color,
 			----------
-			tilegen_clk            => fb_initializer_clk,
-			tilegen_posx           => tilegen_posx_out,
-			tilegen_posy           => tilegen_posy_out,
-			tilegen_put_pixel      => tilegen_put_pixel_out,
-			tilegen_pixel_color    => tilegen_color_out,
+			tilegen_clk       => fb_initializer_clk,
+			tilegen_posx      => tilegen_posx_out,
+			tilegen_posy      => tilegen_posy_out,
+			tilegen_put_pixel => tilegen_put_pixel_out,
+			color_in          => tilegen_color_out,
 			----------
-			rst                    => not rst,
-			clear                  => tilebuf_clear,
-			clear_done             => tilebuf_clear_done
+			rst               => not rst,
+			clear             => tilebuf_clear,
+			clear_done        => tilebuf_clear_done
 		);
 
 	tile_system0 : entity work.tile_system
@@ -283,11 +283,11 @@ begin
 					end if;
 
 				-- GENERATE TILE
-				
+
 				when st_tilegen_clear =>
 					tilebuf_clear <= '1';
-					state <= st_tilegen_clear_wait;
-					
+					state         <= st_tilegen_clear_wait;
+
 				when st_tilegen_clear_wait =>
 					tilebuf_clear <= '0';
 					if tilebuf_clear_done = '1' then

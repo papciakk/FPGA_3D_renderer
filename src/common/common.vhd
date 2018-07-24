@@ -38,9 +38,17 @@ package common is
 		y : s16;
 		z : s16;
 	end record;
+	
+	type vertex_attr_t is record
+		pos : point3d_t;
+		normal : point3d_t;
+	end record;
 
 	type triangle2d_t is array (0 to 2) of point2d_t;
 	type triangle3d_t is array (0 to 2) of point3d_t;
+	type triangle_t is array (0 to 2) of vertex_attr_t;
+	
+	type triangle_colors_t is array (0 to 2) of color_t;
 
 	type triangle_indices_t is record
 		a : unsigned(15 downto 0);
@@ -50,6 +58,7 @@ package common is
 
 	type vertex_arr_2d_t is array (natural range <>) of point2d_t;
 	type vertex_arr_3d_t is array (natural range <>) of point3d_t;
+	type vertex_attr_arr_t is array (natural range <>) of vertex_attr_t;
 
 	type indices_arr_t is array (natural range <>) of triangle_indices_t;
 
@@ -84,12 +93,15 @@ package common is
 	constant COLOR_RED   : color_t := (r => X"FF", others => X"00");
 	constant COLOR_GREEN : color_t := (g => X"FF", others => X"00");
 	constant COLOR_BLUE  : color_t := (b => X"FF", others => X"00");
-
+	
 	-- FUNCTIONS
+
+	function color(r, g, b : signed) return color_t;
 
 	function point2d(x : integer; y : integer) return point2d_t;
 	function point3d(x : integer; y : integer; z : integer) return point3d_t;
 	function point3d(x, y, z : signed) return point3d_t;
+	function va(vx, vy, vz, nx, ny, nz : integer) return vertex_attr_t;
 	function idx(a : integer; b : integer; c : integer) return triangle_indices_t;
 
 	function maximum2(x, y : signed) return signed;
@@ -106,6 +118,15 @@ package body common is
 
 	-- FUNCTIONS
 
+	function color(r, g, b : signed) return color_t is
+	begin
+		return (
+			r => std_logic_vector(r(7 downto 0)), 
+			g => std_logic_vector(g(7 downto 0)), 
+			b => std_logic_vector(b(7 downto 0))
+		);
+	end function;
+
 	function point2d(x : integer; y : integer) return point2d_t is
 	begin
 		return (x => to_signed(x, 16), y => to_signed(y, 16));
@@ -119,6 +140,14 @@ package body common is
 	function point3d(x, y, z : signed) return point3d_t is
 	begin
 		return (x => x, y => y, z => z);
+	end function;
+	
+	function va(vx, vy, vz, nx, ny, nz : integer) return vertex_attr_t is
+	begin
+		return (
+			pos => point3d(vx, vy, vz),
+			normal => point3d(nx, ny, nz)
+		);
 	end function;
 	
 	function idx(a : integer; b : integer; c: integer) return triangle_indices_t is
