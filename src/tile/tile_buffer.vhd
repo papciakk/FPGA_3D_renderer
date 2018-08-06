@@ -64,16 +64,16 @@ begin
 			q         => color_out_raw
 		);
 		
-	depth_buffer : entity work.tile_depth_ram
-		port map(
-			data      => depth_in_raw,
-			rdaddress => ram_addr_wr,
-			rdclock   => tilegen_clk,
-			wraddress => ram_addr_wr,
-			wrclock   => tilegen_clk,
-			wren      => wren,
-			q         => depth_out
-		);
+--	depth_buffer : entity work.tile_depth_ram
+--		port map(
+--			data      => depth_in_raw,
+--			rdaddress => ram_addr_wr,
+--			rdclock   => tilegen_clk,
+--			wraddress => ram_addr_wr,
+--			wrclock   => tilegen_clk,
+--			wren      => wren,
+--			q         => depth_out
+--		);
 		
 	ram_addr_rd            <= std_logic_vector(to_unsigned(to_integer(screen_posy * TILE_RES_X + screen_posx), TILE_ADDR_LEN));
 	color_out <= (
