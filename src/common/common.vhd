@@ -39,6 +39,10 @@ package common is
 		z : s16;
 	end record;
 	
+	type point3d_32t is record
+		x, y, z : s32;
+	end record;
+	
 	type vertex_attr_t is record
 		pos : point3d_t;
 		normal : point3d_t;
@@ -97,6 +101,7 @@ package common is
 	-- FUNCTIONS
 
 	function color(r, g, b : signed) return color_t;
+	function color(r, g, b : std_logic_vector) return color_t;
 
 	function point2d(x : integer; y : integer) return point2d_t;
 	function point3d(x : integer; y : integer; z : integer) return point3d_t;
@@ -124,6 +129,15 @@ package body common is
 			r => std_logic_vector(r(7 downto 0)), 
 			g => std_logic_vector(g(7 downto 0)), 
 			b => std_logic_vector(b(7 downto 0))
+		);
+	end function;
+	
+	function color(r, g, b : std_logic_vector) return color_t is
+	begin
+		return (
+			r => r, 
+			g => g, 
+			b => b
 		);
 	end function;
 

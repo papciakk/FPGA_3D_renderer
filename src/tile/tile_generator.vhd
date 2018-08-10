@@ -36,7 +36,53 @@ architecture bahavioral of tile_generator is
 
 	signal area, area_next     : s32;
 	signal depths, depths_next : point3d_t;
-	signal colors, colors_next  : triangle_colors_t;
+	signal colors, colors_next : triangle_colors_t;
+
+	function calc_lighting_for_vertex(vertex : vertex_attr_t) return color_t is
+		variable light_dir   : point3d_32t;
+		variable diffuse_raw : signed(47 downto 0);
+		variable diffuse     : std_logic_vector(7 downto 0);
+
+		constant multiplier     : integer := 256;
+		constant light_distance : integer := 1000;
+	begin
+		light_dir := (
+			x => (-vertex.pos.x) * multiplier,
+			y => (-vertex.pos.y) * multiplier,
+			z => (light_distance - vertex.pos.z) * multiplier
+		);
+
+		diffuse_raw := (vertex.normal.x * light_dir.x + vertex.normal.y * light_dir.y + vertex.normal.z * light_dir.z) / (255);
+
+		if diffuse_raw > 0 then
+			diffuse := std_logic_vector(diffuse_raw(7 downto 0));
+		else
+			diffuse := (others => '0');
+		end if;
+
+		if diffuse_raw <= 255 then
+			return color(diffuse, diffuse, diffuse);
+		else
+			return COLOR_WHITE;
+		end if;
+	end function;
+
+	function rescale_attributes(vertex : vertex_attr_t) return vertex_attr_t is
+	begin
+
+		return (
+			pos    => (
+				x => vertex.pos.x / 128 + 320,
+				y => vertex.pos.y / 128,
+				z => vertex.pos.z / 128 + 240
+			),
+			normal => (
+				x => vertex.normal.x,
+				y => vertex.normal.y,
+				z => vertex.normal.z
+			)
+		);
+	end function;
 
 begin
 
@@ -85,6 +131,9 @@ begin
 	process(state, current_triangle_index, trianglegen_ready, start_rendering, triangle, start_in, ready_out, area, depths, colors) is
 		variable v1, v2, v3 : vertex_attr_t;
 		variable area_v     : s32;
+
+		variable color1, color2, color3 : color_t;
+
 	begin
 		state_next                  <= state;
 		current_triangle_index_next <= current_triangle_index;
@@ -103,40 +152,50 @@ begin
 				state_next                  <= st_idle;
 
 			when st_render_task =>
-				v1 := vertices(to_integer(indices(current_triangle_index).a));
-				v2 := vertices(to_integer(indices(current_triangle_index).b));
-				v3 := vertices(to_integer(indices(current_triangle_index).c));
+				v1 := rescale_attributes(vertices(to_integer(indices(current_triangle_index).a)));
+				v2 := rescale_attributes(vertices(to_integer(indices(current_triangle_index).b)));
+				v3 := rescale_attributes(vertices(to_integer(indices(current_triangle_index).c)));
+
+				color1 := calc_lighting_for_vertex(v1);
+				color2 := calc_lighting_for_vertex(v2);
+				color3 := calc_lighting_for_vertex(v3);
 
 				area_v := (v1.pos.x - v2.pos.x) * (v3.pos.z - v2.pos.z) - (v1.pos.z - v2.pos.z) * (v3.pos.x - v2.pos.x);
 
---				if area_v > 0 then      -- backface culling - ccw mode
-					triangle_next <= (
-						(x => v1.pos.x, y => v1.pos.z),
-						(x => v2.pos.x, y => v2.pos.z),
-						(x => v3.pos.x, y => v3.pos.z)
-					);
+				--				if area_v > 0 then      -- backface culling - ccw mode
+				triangle_next <= (
+					(x => v1.pos.x, y => v1.pos.z),
+					(x => v2.pos.x, y => v2.pos.z),
+					(x => v3.pos.x, y => v3.pos.z)
+				);
 
-					area_next   <= area_v;
-					depths_next <= point3d(v1.pos.y, v2.pos.y, v3.pos.y);
-					colors_next <= (
-						color(v1.normal.x, v1.normal.y, v1.normal.z),
-						color(v2.normal.x, v2.normal.y, v2.normal.z),
-						color(v3.normal.x, v3.normal.y, v3.normal.z)
-						
-					);
+				area_next   <= area_v;
+				depths_next <= point3d(v1.pos.y, v2.pos.y, v3.pos.y);
+				--					colors_next <= (
+				--						color(v1.normal.x, v1.normal.y, v1.normal.z),
+				--						color(v2.normal.x, v2.normal.y, v2.normal.z),
+				--						color(v3.normal.x, v3.normal.y, v3.normal.z)
+				--						
+				--					);
 
---					color_out <= (
---						r => std_logic_vector(v2.normal.x(7 downto 0)),
---						g => std_logic_vector(v2.normal.y(7 downto 0)),
---						b => std_logic_vector(v2.normal.z(7 downto 0))
---					);
+				colors_next <= (
+					color1,
+					color2,
+					color3
+				);
 
-					ready_out_next       <= '0';
-					start_rendering_next <= '1';
-					state_next           <= st_render_task_wait;
---				else
---					state_next <= st_finished;
---				end if;
+				--									color_out <= (
+				--										r => std_logic_vector(v2.normal.x(7 downto 0)),
+				--										g => std_logic_vector(v2.normal.y(7 downto 0)),
+				--										b => std_logic_vector(v2.normal.z(7 downto 0))
+				--									);
+
+				ready_out_next       <= '0';
+				start_rendering_next <= '1';
+				state_next           <= st_render_task_wait;
+			--				else
+			--					state_next <= st_finished;
+			--				end if;
 
 			when st_render_task_wait =>
 				ready_out_next       <= '0';

@@ -109,7 +109,7 @@ begin
 		end if;
 	end process;
 
-	process(state, cntx, cnty, render_rect_latch.x0, render_rect_latch.x1, render_rect_latch.y0, render_rect_latch.y1, put_pixel_out, ready_out, start_in, render_rect_latch, tile_rect_in, triangle_in, triangle_latch, area_in, depths_in.x, depths_in.y, depths_in.z, colors_in(0).b, colors_in(0).g, colors_in(0).r, colors_in(1).r, colors_in(2).r) is
+	process(state, cntx, cnty, render_rect_latch.x0, render_rect_latch.x1, render_rect_latch.y0, render_rect_latch.y1, put_pixel_out, ready_out, start_in, render_rect_latch, tile_rect_in, triangle_in, triangle_latch, area_in, depths_in.x, depths_in.y, depths_in.z, colors_in(0).b, colors_in(0).g, colors_in(0).r, colors_in(1).r, colors_in(2).r, colors_in(1).b, colors_in(1).g, colors_in(2).b, colors_in(2).g) is
 		variable e0, e1, e2 : s32;
 --		variable depth      : signed(47 downto 0);
 		variable r, g, b : s32;
