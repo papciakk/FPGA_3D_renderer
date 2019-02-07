@@ -13,7 +13,11 @@ entity renderer_triangle is
 		posx_out      : out unsigned(15 downto 0);
 		posy_out      : out unsigned(15 downto 0);
 		start_in      : in  std_logic;
-		ready_out     : out std_logic
+		ready_out     : out std_logic;
+		area_in       : in  s32;
+		depths_in     : in  point3d_t;
+		colors_in     : in  triangle_colors_t;
+		color_out     : out color_t
 	);
 end entity renderer_triangle;
 
@@ -61,9 +65,22 @@ architecture RTL of renderer_triangle is
 
 	signal triangle_latch, triangle_latch_next : triangle2d_t := (point2d(0, 0), point2d(0, 0), point2d(0, 0));
 
-	function cross_product_sign(x, y : s16; p2, p3 : point2d_t) return boolean is
+	function cross_product(x, y : s16; p2, p3 : point2d_t) return s32 is
 	begin
-		return ((x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (y - p3.y)) <= 0;
+		return ((x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (y - p3.y));
+	end function;
+	
+	function interpolate_color_component(
+		c0, c1, c2 : std_logic_vector(7 downto 0);
+		e0, e1, e2 : s32;
+		area : s32
+	) return s32 is
+	begin
+		return resize(
+				e0 * signed('0' & c0) + 
+				e1 * signed('0' & c1) + 
+				e2 * signed('0' & c2), 32
+		) / area;
 	end function;
 
 	-- CONTROL
@@ -92,7 +109,10 @@ begin
 		end if;
 	end process;
 
-	process(state, cntx, cnty, render_rect_latch.x0, render_rect_latch.x1, render_rect_latch.y0, render_rect_latch.y1, put_pixel_out, ready_out, start_in, render_rect_latch, tile_rect_in, triangle_in, triangle_latch) is
+	process(state, cntx, cnty, render_rect_latch.x0, render_rect_latch.x1, render_rect_latch.y0, render_rect_latch.y1, put_pixel_out, ready_out, start_in, render_rect_latch, tile_rect_in, triangle_in, triangle_latch, area_in, depths_in.x, depths_in.y, depths_in.z, colors_in(0).b, colors_in(0).g, colors_in(0).r, colors_in(1).r, colors_in(2).r, colors_in(1).b, colors_in(1).g, colors_in(2).b, colors_in(2).g) is
+		variable e0, e1, e2 : s32;
+		variable depth      : signed(47 downto 0);
+		variable r, g, b : s32;
 	begin
 		state_next             <= state;
 		put_pixel_out_next     <= put_pixel_out;
@@ -134,9 +154,33 @@ begin
 
 				if cnty <= render_rect_latch.y1 then
 					if cntx < render_rect_latch.x1 then
-						if cross_product_sign(cntx, cnty, triangle_latch(0), triangle_latch(1)) and cross_product_sign(cntx, cnty, triangle_latch(1), triangle_latch(2)) and cross_product_sign(cntx, cnty, triangle_latch(2), triangle_latch(0)) then
+						e0 := cross_product(cntx, cnty, triangle_latch(0), triangle_latch(1));
+						e1 := cross_product(cntx, cnty, triangle_latch(1), triangle_latch(2));
+						e2 := cross_product(cntx, cnty, triangle_latch(2), triangle_latch(0));
+
+						if e0 <= 0 and e1 <= 0 and e2 <= 0 then
+
+							r := interpolate_color_component(colors_in(2).r, colors_in(0).r, colors_in(1).r, e0, e1, e2, area_in);
+							g := interpolate_color_component(colors_in(2).g, colors_in(0).g, colors_in(1).g, e0, e1, e2, area_in);
+							b := interpolate_color_component(colors_in(2).b, colors_in(0).b, colors_in(1).b, e0, e1, e2, area_in);
+							
+							color_out <= (
+								r => std_logic_vector(r(7 downto 0)),
+								g => std_logic_vector(g(7 downto 0)),
+								b => std_logic_vector(b(7 downto 0))
+							);
+
+--							depth := (e0 * depths_in.z + e1 * depths_in.x + e2 * depths_in.y) / area_in;
+--
+--							color_out <= (
+--								r => std_logic_vector(depth(7 downto 0)),
+--								g => std_logic_vector(depth(7 downto 0)),
+--								b => std_logic_vector(depth(7 downto 0))
+--							);
+
 							put_pixel_out_next <= '1';
 						end if;
+
 						cntx_next <= cntx + 1;
 					else
 						cntx_next <= render_rect_latch.x0;
