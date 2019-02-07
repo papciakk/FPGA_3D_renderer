@@ -39,32 +39,31 @@ architecture bahavioral of tile_generator is
 	signal colors, colors_next : triangle_colors_t;
 
 	function calc_lighting_for_vertex(vertex : vertex_attr_t) return color_t is
-		variable light_dir   : point3d_32t;
 		variable diffuse_raw : signed(47 downto 0);
 		variable diffuse     : std_logic_vector(7 downto 0);
-
-		constant multiplier     : integer := 256;
-		constant light_distance : integer := 1000;
-	begin
-		light_dir := (
-			x => (-vertex.pos.x) * multiplier,
-			y => (-vertex.pos.y) * multiplier,
-			z => (light_distance - vertex.pos.z) * multiplier
+		variable diffuse_1 : unsigned(47 downto 0);
+		
+		constant light_dir : point3d_32t := (
+			z => to_signed(180, 32),
+			y => (others => '0'),
+			x => to_signed(180, 32)
 		);
+	begin
 
-		diffuse_raw := (vertex.normal.x * light_dir.x + vertex.normal.y * light_dir.y + vertex.normal.z * light_dir.z) / (255);
+		diffuse_raw := (vertex.normal.x * light_dir.x + vertex.normal.y * light_dir.y + vertex.normal.z * light_dir.z) / 255;
 
 		if diffuse_raw > 0 then
-			diffuse := std_logic_vector(diffuse_raw(7 downto 0));
+			if diffuse_raw > 255 then
+				diffuse := std_logic_vector(to_unsigned(255, 8));
+			else
+				diffuse_1 := to_unsigned(to_integer(abs(diffuse_raw)), 48);
+				diffuse := std_logic_vector(diffuse_1(7 downto 0));
+			end if;
 		else
 			diffuse := (others => '0');
 		end if;
 
-		if diffuse_raw <= 255 then
-			return color(diffuse, diffuse, diffuse);
-		else
-			return COLOR_WHITE;
-		end if;
+		return color(diffuse, diffuse, diffuse);
 	end function;
 
 	function rescale_attributes(vertex : vertex_attr_t) return vertex_attr_t is

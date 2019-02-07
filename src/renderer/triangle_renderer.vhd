@@ -111,7 +111,7 @@ begin
 
 	process(state, cntx, cnty, render_rect_latch.x0, render_rect_latch.x1, render_rect_latch.y0, render_rect_latch.y1, put_pixel_out, ready_out, start_in, render_rect_latch, tile_rect_in, triangle_in, triangle_latch, area_in, depths_in.x, depths_in.y, depths_in.z, colors_in(0).b, colors_in(0).g, colors_in(0).r, colors_in(1).r, colors_in(2).r, colors_in(1).b, colors_in(1).g, colors_in(2).b, colors_in(2).g) is
 		variable e0, e1, e2 : s32;
---		variable depth      : signed(47 downto 0);
+		variable depth      : signed(47 downto 0);
 		variable r, g, b : s32;
 	begin
 		state_next             <= state;
@@ -170,13 +170,13 @@ begin
 								b => std_logic_vector(b(7 downto 0))
 							);
 
-							--							depth := (e0 * depths_in.z + e1 * depths_in.x + e2 * depths_in.y) / area_in;
-
-							--							color_out <= (
-							--								r => std_logic_vector(depth(7 downto 0)),
-							--								g => std_logic_vector(depth(7 downto 0)),
-							--								b => std_logic_vector(depth(7 downto 0))
-							--							);
+--							depth := (e0 * depths_in.z + e1 * depths_in.x + e2 * depths_in.y) / area_in;
+--
+--							color_out <= (
+--								r => std_logic_vector(depth(7 downto 0)),
+--								g => std_logic_vector(depth(7 downto 0)),
+--								b => std_logic_vector(depth(7 downto 0))
+--							);
 
 							put_pixel_out_next <= '1';
 						end if;
