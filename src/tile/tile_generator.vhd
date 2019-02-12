@@ -14,7 +14,9 @@ entity tile_generator is
 		color_out             : out color_t;
 		tile_rect_in          : in  rect_t;
 		start_in              : in  std_logic;
-		ready_out             : out std_logic
+		ready_out             : out std_logic;
+		depth_in : out unsigned(15 downto 0);
+		depth_out : in unsigned(15 downto 0)
 	);
 end entity tile_generator;
 
@@ -99,7 +101,9 @@ begin
 			area_in       => area,
 			depths_in     => depths,
 			colors_in     => colors,
-			color_out     => color_out
+			color_out     => color_out,
+			depth_buf_in => depth_in,
+			depth_buf_out => depth_out
 		);
 
 	random0 : entity work.random

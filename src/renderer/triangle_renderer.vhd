@@ -17,7 +17,9 @@ entity renderer_triangle is
 		area_in       : in  s32;
 		depths_in     : in  point3d_t;
 		colors_in     : in  triangle_colors_t;
-		color_out     : out color_t
+		color_out     : out color_t;
+		depth_buf_in : out unsigned(15 downto 0);
+		depth_buf_out : in unsigned(15 downto 0)
 	);
 end entity renderer_triangle;
 
@@ -151,6 +153,7 @@ begin
 
 			when st_render =>
 				put_pixel_out_next <= '0';
+				depth_buf_in <= depth_buf_out;
 
 				if cnty <= render_rect_latch.y1 then
 					if cntx < render_rect_latch.x1 then
@@ -158,25 +161,27 @@ begin
 						e1 := cross_product(cntx, cnty, triangle_latch(1), triangle_latch(2));
 						e2 := cross_product(cntx, cnty, triangle_latch(2), triangle_latch(0));
 
+
 						if e0 <= 0 and e1 <= 0 and e2 <= 0 then
 
-							r := interpolate_color_component(colors_in(2).r, colors_in(0).r, colors_in(1).r, e0, e1, e2, area_in);
-							g := interpolate_color_component(colors_in(2).g, colors_in(0).g, colors_in(1).g, e0, e1, e2, area_in);
-							b := interpolate_color_component(colors_in(2).b, colors_in(0).b, colors_in(1).b, e0, e1, e2, area_in);
+--							r := interpolate_color_component(colors_in(2).r, colors_in(0).r, colors_in(1).r, e0, e1, e2, area_in);
+--							g := interpolate_color_component(colors_in(2).g, colors_in(0).g, colors_in(1).g, e0, e1, e2, area_in);
+--							b := interpolate_color_component(colors_in(2).b, colors_in(0).b, colors_in(1).b, e0, e1, e2, area_in);
 							
-							color_out <= (
-								r => std_logic_vector(r(7 downto 0)),
-								g => std_logic_vector(g(7 downto 0)),
-								b => std_logic_vector(b(7 downto 0))
-							);
-
---							depth := (e0 * depths_in.z + e1 * depths_in.x + e2 * depths_in.y) / area_in;
---
 --							color_out <= (
---								r => std_logic_vector(depth(7 downto 0)),
---								g => std_logic_vector(depth(7 downto 0)),
---								b => std_logic_vector(depth(7 downto 0))
+--								r => std_logic_vector(r(7 downto 0)),
+--								g => std_logic_vector(g(7 downto 0)),
+--								b => std_logic_vector(b(7 downto 0))
 --							);
+
+							depth := (e0 * depths_in.z + e1 * depths_in.x + e2 * depths_in.y) / area_in;
+							depth_buf_in <= unsigned(std_logic_vector(depth + 127))(15 downto 0);
+--
+							color_out <= (
+								r => std_logic_vector(depth_buf_out(7 downto 0) ),
+								g => std_logic_vector(depth_buf_out(7 downto 0)),
+								b => std_logic_vector(depth_buf_out(7 downto 0))
+							);
 
 							put_pixel_out_next <= '1';
 						end if;
