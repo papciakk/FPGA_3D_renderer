@@ -23,7 +23,8 @@ entity tile_buffer is
 		---------------------------------------------------
 		depth_in               : in unsigned(15 downto 0);
 		depth_out              : out unsigned(15 downto 0);
-		clk50 : in std_logic
+		clk50 : in std_logic;
+		depth_wren : in std_logic
 	);
 end entity tile_buffer;
 
@@ -39,6 +40,7 @@ architecture RTL of tile_buffer is
 	signal clear_done_next                   : std_logic := '0';
 	
 	signal wren : std_logic;
+	signal depth_wren_raw : std_logic;
 
 	type state_type is (
 		st_start, st_idle, st_clear_wait
@@ -61,6 +63,7 @@ begin
 	ram_addr_wr <= clear_addr_wr when clear_mode = '1' else std_logic_vector(to_unsigned(to_integer(tilegen_posy * TILE_RES_X + tilegen_posx), TILE_ADDR_LEN));
 	
 	wren <= '1' when clear_mode = '1' else tilegen_put_pixel;
+	depth_wren_raw <= '1' when clear_mode = '1' else depth_wren;
 
 	color_buffer : entity work.tile_ram
 		port map(
@@ -77,9 +80,9 @@ begin
 		port map(
 			clock     => clk50,
 			data      => depth_in_raw,
-			rdaddress => ram_addr_wr,
-			wraddress => ram_addr_wr,
-			wren      => '1',
+			rdaddress => '0' & ram_addr_wr,
+			wraddress => '0' & ram_addr_wr,
+			wren      => depth_wren_raw,
 			q         => depth_out_raw
 		);
 		

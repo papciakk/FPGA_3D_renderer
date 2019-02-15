@@ -16,7 +16,8 @@ entity tile_system is
 		start_in      : in  std_logic;
 		tile_num_in   : in  integer;
 		depth_in : out unsigned(15 downto 0);
-		depth_out : in unsigned(15 downto 0)
+		depth_out : in unsigned(15 downto 0);
+		depth_wren : out std_logic
 	);
 end entity tile_system;
 
@@ -80,7 +81,8 @@ begin
 			start_in              => start_rendering_tile,
 			ready_out             => tile_rendered,
 			depth_in => depth_in,
-			depth_out => depth_out
+			depth_out => depth_out,
+			depth_wren => depth_wren
 		);
 
 	posx_out <= untransposed_posx - current_tile_rect.x0;
