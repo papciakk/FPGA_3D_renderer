@@ -91,7 +91,7 @@ architecture RTL of renderer_triangle is
 	-- CONTROL
 
 	type state_type is (
-		st_start, st_idle, st_render, st_finished, st_start_render, st_wait_0, st_wait_1, st_wait_2, st_wait_3, st_wait_4, st_wait_3w, st_wait_4w
+		st_start, st_idle, st_render, st_finished, st_start_render, st_wait_0
 	);
 	signal state, state_next : state_type := st_start;
 
@@ -178,7 +178,7 @@ begin
 							depth_out_latch <= depth_buf_out;
 							depth := 256 - (e0 * depths_in.z + e1 * depths_in.x + e2 * depths_in.y) / area_in;
 
-							state_next <= st_wait_2;
+							state_next <= st_wait_0;
 						else
 							cntx_next <= cntx + 1;
 						end if;
@@ -196,27 +196,19 @@ begin
 				
 			when st_wait_0 =>
 				depth_wren <= '0';
-				state_next <= st_wait_1;
-				
-			when st_wait_1 =>
-				depth_wren <= '0';
-				state_next <= st_wait_2;
-				
-			when st_wait_2 =>
-				depth_wren <= '0';
 				if unsigned(std_logic_vector(depth+127))(15 downto 0) > depth_out_latch then
 					depth_wren <= '1';
 					depth_buf_in <= unsigned(std_logic_vector(depth+127))(15 downto 0);
---					color_out <= (
---						r => std_logic_vector(depth+127)(7 downto 0),
---						g => std_logic_vector(depth+127)(7 downto 0),
---						b => std_logic_vector(depth+127)(7 downto 0)
---					);
 					color_out <= (
-						r => std_logic_vector(r)(7 downto 0),
-						g => std_logic_vector(g)(7 downto 0),
-						b => std_logic_vector(b)(7 downto 0)
+						r => std_logic_vector(depth+127)(7 downto 0),
+						g => std_logic_vector(depth+127)(7 downto 0),
+						b => std_logic_vector(depth+127)(7 downto 0)
 					);
+--					color_out <= (
+--						r => std_logic_vector(r)(7 downto 0),
+--						g => std_logic_vector(g)(7 downto 0),
+--						b => std_logic_vector(b)(7 downto 0)
+--					);
 --							color_out <= (
 --								r => X"FF",
 --								g => X"FF",
@@ -224,35 +216,12 @@ begin
 --							);
 
 					put_pixel_out_next <= '1';
-					cntx_next <= cntx + 1;
-					state_next <= st_render;
 				else
 					put_pixel_out_next <= '0';
-					cntx_next <= cntx + 1;
-					state_next <= st_render;
 				end if;
-				
-			when st_wait_3 =>
-				depth_wren <= '0';
-				put_pixel_out_next <= '0';
-				state_next <= st_wait_4;
-				
-			when st_wait_4 =>
-				depth_wren <= '0';
 				cntx_next <= cntx + 1;
 				state_next <= st_render;
 				
-				
-			when st_wait_3w =>
-				depth_wren <= '1';
-				put_pixel_out_next <= '0';
-				state_next <= st_wait_4w;
-				
-			when st_wait_4w =>
-				depth_wren <= '1';
-				cntx_next <= cntx + 1;
-				state_next <= st_render;
-
 			when st_finished =>
 				depth_wren <= '0';
 				ready_out_next     <= '1';
