@@ -178,7 +178,7 @@ begin
 							depth_out_latch <= depth_buf_out;
 							depth := 256 - (e0 * depths_in.z + e1 * depths_in.x + e2 * depths_in.y) / area_in;
 
-							state_next <= st_wait_0;
+							state_next <= st_wait_2;
 						else
 							cntx_next <= cntx + 1;
 						end if;
@@ -204,19 +204,19 @@ begin
 				
 			when st_wait_2 =>
 				depth_wren <= '0';
-				if unsigned(std_logic_vector(depth))(15 downto 0) > depth_out_latch then
+				if unsigned(std_logic_vector(depth+127))(15 downto 0) > depth_out_latch then
 					depth_wren <= '1';
-					depth_buf_in <= unsigned(std_logic_vector(depth))(15 downto 0);
-					color_out <= (
-						r => std_logic_vector(depth)(7 downto 0),
-						g => std_logic_vector(depth)(7 downto 0),
-						b => std_logic_vector(depth)(7 downto 0)
-					);
+					depth_buf_in <= unsigned(std_logic_vector(depth+127))(15 downto 0);
 --					color_out <= (
---						r => std_logic_vector(r)(7 downto 0),
---						g => std_logic_vector(g)(7 downto 0),
---						b => std_logic_vector(b)(7 downto 0)
+--						r => std_logic_vector(depth+127)(7 downto 0),
+--						g => std_logic_vector(depth+127)(7 downto 0),
+--						b => std_logic_vector(depth+127)(7 downto 0)
 --					);
+					color_out <= (
+						r => std_logic_vector(r)(7 downto 0),
+						g => std_logic_vector(g)(7 downto 0),
+						b => std_logic_vector(b)(7 downto 0)
+					);
 --							color_out <= (
 --								r => X"FF",
 --								g => X"FF",
@@ -224,10 +224,12 @@ begin
 --							);
 
 					put_pixel_out_next <= '1';
-					state_next <= st_wait_3w;
+					cntx_next <= cntx + 1;
+					state_next <= st_render;
 				else
 					put_pixel_out_next <= '0';
-					state_next <= st_wait_3;
+					cntx_next <= cntx + 1;
+					state_next <= st_render;
 				end if;
 				
 			when st_wait_3 =>
