@@ -9,17 +9,22 @@ entity tile_buffer is
 		screen_clk             : in  std_logic;
 		screen_posx            : in  unsigned(15 downto 0);
 		screen_posy            : in  unsigned(15 downto 0);
-		color_out : out color_t;
+		color_out              : out color_t;
 		---------------------------------------------------
 		tilegen_clk            : in  std_logic;
 		tilegen_posx           : in  unsigned(15 downto 0);
 		tilegen_posy           : in  unsigned(15 downto 0);
 		tilegen_put_pixel      : in  std_logic;
-		color_in    : in  color_t;
+		color_in               : in  color_t;
 		---------------------------------------------------
 		rst                    : in  std_logic;
 		clear                  : in  std_logic;
-		clear_done             : out std_logic
+		clear_done             : out std_logic;
+		---------------------------------------------------
+		depth_in               : in unsigned(15 downto 0);
+		depth_out              : out unsigned(15 downto 0);
+		clk50 : in std_logic;
+		depth_wren : in std_logic
 	);
 end entity tile_buffer;
 
@@ -35,6 +40,7 @@ architecture RTL of tile_buffer is
 	signal clear_done_next                   : std_logic := '0';
 	
 	signal wren : std_logic;
+	signal depth_wren_raw : std_logic;
 
 	type state_type is (
 		st_start, st_idle, st_clear_wait
@@ -42,6 +48,11 @@ architecture RTL of tile_buffer is
 	signal state, state_next : state_type := st_start;
 	
 	constant TILE_SIZE : integer := (TILE_RES_X) * (TILE_RES_Y+1);
+	
+	signal depth_in_raw : STD_LOGIC_VECTOR (15 DOWNTO 0);
+	signal depth_out_raw : STD_LOGIC_VECTOR (15 DOWNTO 0);
+	
+	
 
 begin
 
@@ -52,6 +63,7 @@ begin
 	ram_addr_wr <= clear_addr_wr when clear_mode = '1' else std_logic_vector(to_unsigned(to_integer(tilegen_posy * TILE_RES_X + tilegen_posx), TILE_ADDR_LEN));
 	
 	wren <= '1' when clear_mode = '1' else tilegen_put_pixel;
+	depth_wren_raw <= '1' when clear_mode = '1' else depth_wren;
 
 	color_buffer : entity work.tile_ram
 		port map(
@@ -63,6 +75,19 @@ begin
 			wren      => wren,
 			q         => color_out_raw
 		);
+		
+	depth_buffer : entity work.depth_buf
+		port map(
+			clock     => clk50,
+			data      => depth_in_raw,
+			rdaddress => '0' & ram_addr_wr,
+			wraddress => '0' & ram_addr_wr,
+			wren      => depth_wren_raw,
+			q         => depth_out_raw
+		);
+		
+	depth_in_raw <= X"0000" when clear_mode = '1' else std_logic_vector(depth_in);
+	depth_out <= unsigned(depth_out_raw);
 		
 --	depth_buffer : entity work.tile_depth_ram
 --		port map(

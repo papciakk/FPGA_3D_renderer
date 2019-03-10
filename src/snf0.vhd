@@ -122,6 +122,12 @@ architecture behavioral of snf0 is
 	-----------------------------------------
 	signal tilebuf_clear      : std_logic := '0';
 	signal tilebuf_clear_done : std_logic;
+	
+	signal depth_in : unsigned(15 downto 0);
+	signal depth_out : unsigned(15 downto 0);
+	signal depth_wren : std_logic;
+
+	signal clk150 : std_logic;
 
 begin
 
@@ -130,7 +136,8 @@ begin
 			areset => not rst,
 			inclk0 => CLK_50,
 			c0     => fb_initializer_clk,
-			c1     => fb_disp_clk
+			c1     => fb_disp_clk,
+			c2 => clk150
 		);
 
 	fb_lo_level_driver0 : entity work.fb_lo_level_driver
@@ -198,7 +205,12 @@ begin
 			----------
 			rst               => not rst,
 			clear             => tilebuf_clear,
-			clear_done        => tilebuf_clear_done
+			clear_done        => tilebuf_clear_done,
+			----------
+			depth_in          => depth_in,
+			depth_out         => depth_out,
+			clk50 => clk150,
+			depth_wren => depth_wren
 		);
 
 	tile_system0 : entity work.tile_system
@@ -212,7 +224,10 @@ begin
 			tile_rect_out => screen_tile_rect,
 			ready_out     => tilegen_ready,
 			start_in      => tilegen_start,
-			tile_num_in   => tilegen_tile_num_in
+			tile_num_in   => tilegen_tile_num_in,
+			depth_in => depth_in,
+			depth_out => depth_out,
+			depth_wren => depth_wren
 		);
 
 	led_blinker0 : entity work.led_blinker

@@ -17,7 +17,10 @@ entity renderer_triangle is
 		area_in       : in  s32;
 		depths_in     : in  point3d_t;
 		colors_in     : in  triangle_colors_t;
-		color_out     : out color_t
+		color_out     : out color_t;
+		depth_buf_in : out unsigned(15 downto 0);
+		depth_buf_out : in unsigned(15 downto 0);
+		depth_wren : out std_logic
 	);
 end entity renderer_triangle;
 
@@ -55,6 +58,8 @@ architecture RTL of renderer_triangle is
 		);
 	end function;
 
+	signal depth_out_latch : unsigned(15 downto 0);
+
 	-- TRIANGLE RENDERING
 
 	signal cntx, cntx_next : s16 := (others => '0');
@@ -86,7 +91,7 @@ architecture RTL of renderer_triangle is
 	-- CONTROL
 
 	type state_type is (
-		st_start, st_idle, st_render, st_finished, st_start_render
+		st_start, st_idle, st_render, st_finished, st_start_render, st_wait_0
 	);
 	signal state, state_next : state_type := st_start;
 
@@ -109,7 +114,7 @@ begin
 		end if;
 	end process;
 
-	process(state, cntx, cnty, render_rect_latch.x0, render_rect_latch.x1, render_rect_latch.y0, render_rect_latch.y1, put_pixel_out, ready_out, start_in, render_rect_latch, tile_rect_in, triangle_in, triangle_latch, area_in, depths_in.x, depths_in.y, depths_in.z, colors_in(0).b, colors_in(0).g, colors_in(0).r, colors_in(1).r, colors_in(2).r, colors_in(1).b, colors_in(1).g, colors_in(2).b, colors_in(2).g) is
+	process(state, cntx, cnty, render_rect_latch.x0, render_rect_latch.x1, render_rect_latch.y0, render_rect_latch.y1, put_pixel_out, ready_out, start_in, render_rect_latch, tile_rect_in, triangle_in, triangle_latch, area_in, depths_in.x, depths_in.y, depths_in.z, colors_in(0).b, colors_in(0).g, colors_in(0).r, colors_in(1).r, colors_in(2).r, colors_in(1).b, colors_in(1).g, colors_in(2).b, colors_in(2).g, depth_buf_out, depth_out_latch) is
 		variable e0, e1, e2 : s32;
 		variable depth      : signed(47 downto 0);
 		variable r, g, b : s32;
@@ -123,7 +128,8 @@ begin
 		triangle_latch_next    <= triangle_latch;
 
 		case state is
-			when st_start =>
+		when st_start =>
+				depth_wren <= '0';
 				put_pixel_out_next  <= '0';
 				cntx_next           <= (others => '0');
 				cnty_next           <= (others => '0');
@@ -132,6 +138,7 @@ begin
 				state_next          <= st_idle;
 
 			when st_idle =>
+				depth_wren <= '0';
 				put_pixel_out_next <= '0';
 				ready_out_next     <= '0';
 				if start_in = '1' then
@@ -144,6 +151,7 @@ begin
 
 			when st_start_render =>
 				put_pixel_out_next <= '0';
+				depth_wren <= '0';
 				cntx_next          <= render_rect_latch.x0;
 				cnty_next          <= render_rect_latch.y0;
 
@@ -151,6 +159,7 @@ begin
 
 			when st_render =>
 				put_pixel_out_next <= '0';
+				depth_wren <= '0';
 
 				if cnty <= render_rect_latch.y1 then
 					if cntx < render_rect_latch.x1 then
@@ -158,30 +167,23 @@ begin
 						e1 := cross_product(cntx, cnty, triangle_latch(1), triangle_latch(2));
 						e2 := cross_product(cntx, cnty, triangle_latch(2), triangle_latch(0));
 
+
 						if e0 <= 0 and e1 <= 0 and e2 <= 0 then
 
 							r := interpolate_color_component(colors_in(2).r, colors_in(0).r, colors_in(1).r, e0, e1, e2, area_in);
 							g := interpolate_color_component(colors_in(2).g, colors_in(0).g, colors_in(1).g, e0, e1, e2, area_in);
 							b := interpolate_color_component(colors_in(2).b, colors_in(0).b, colors_in(1).b, e0, e1, e2, area_in);
-							
-							color_out <= (
-								r => std_logic_vector(r(7 downto 0)),
-								g => std_logic_vector(g(7 downto 0)),
-								b => std_logic_vector(b(7 downto 0))
-							);
+----							
 
---							depth := (e0 * depths_in.z + e1 * depths_in.x + e2 * depths_in.y) / area_in;
---
---							color_out <= (
---								r => std_logic_vector(depth(7 downto 0)),
---								g => std_logic_vector(depth(7 downto 0)),
---								b => std_logic_vector(depth(7 downto 0))
---							);
+							depth_out_latch <= depth_buf_out;
+							depth := 256 - (e0 * depths_in.z + e1 * depths_in.x + e2 * depths_in.y) / area_in;
 
-							put_pixel_out_next <= '1';
+							state_next <= st_wait_0;
+						else
+							cntx_next <= cntx + 1;
 						end if;
 
-						cntx_next <= cntx + 1;
+						
 					else
 						cntx_next <= render_rect_latch.x0;
 						cnty_next <= cnty + 1;
@@ -191,8 +193,37 @@ begin
 					put_pixel_out_next <= '0';
 					state_next         <= st_idle;
 				end if;
+				
+			when st_wait_0 =>
+				depth_wren <= '0';
+				if unsigned(std_logic_vector(depth+127))(15 downto 0) > depth_out_latch then
+					depth_wren <= '1';
+					depth_buf_in <= unsigned(std_logic_vector(depth+127))(15 downto 0);
+					color_out <= (
+						r => std_logic_vector(depth+127)(7 downto 0),
+						g => std_logic_vector(depth+127)(7 downto 0),
+						b => std_logic_vector(depth+127)(7 downto 0)
+					);
+--					color_out <= (
+--						r => std_logic_vector(r)(7 downto 0),
+--						g => std_logic_vector(g)(7 downto 0),
+--						b => std_logic_vector(b)(7 downto 0)
+--					);
+--							color_out <= (
+--								r => X"FF",
+--								g => X"FF",
+--								b => X"FF"
+--							);
 
+					put_pixel_out_next <= '1';
+				else
+					put_pixel_out_next <= '0';
+				end if;
+				cntx_next <= cntx + 1;
+				state_next <= st_render;
+				
 			when st_finished =>
+				depth_wren <= '0';
 				ready_out_next     <= '1';
 				put_pixel_out_next <= '0';
 				cntx_next          <= (others => '0');
