@@ -39,7 +39,7 @@ architecture RTL of fb_lo_level_driver is
 begin
 
 	process(clk, rst) is
-		constant RESET_WAIT_TICKS                            : integer   := 10000;
+		constant RESET_WAIT_TICKS                            : integer   := 20000;
 		constant MODE_DATA, WR_STOP, RD_STOP, RST_STOP       : std_logic := '1';
 		constant MODE_COMMAND, WR_START, RD_START, RST_START : std_logic := '0';
 	begin

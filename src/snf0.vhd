@@ -51,16 +51,23 @@ end snf0;
 
 architecture behavioral of snf0 is
 	type fsm_state_type is (
+		st_idle,
 		st_start,
-		st_fb_init, st_fb_init_wait,
+		st_fb_init, st_fb_init_wait);
+	signal state_init : fsm_state_type := st_start;
+
+	type drawing_state_type is (
+		st_start,
+		st_wait,
 		st_screen_write,
 		st_init_tilegen, st_tilegen_wait,
 		st_disp_clear, st_disp_clear_wait,
 		st_next_tile,
 		st_screen_wait,
 		st_end,
-		st_tilegen_clear, st_tilegen_clear_wait);
-	signal state : fsm_state_type := st_start;
+		st_tilegen_clear, st_tilegen_clear_wait
+	);
+	signal state_drawing : drawing_state_type := st_wait;
 
 	----------------------------------------
 
@@ -117,17 +124,20 @@ architecture behavioral of snf0 is
 	signal tilegen_put_pixel_out : std_logic;
 	signal tilegen_ready         : std_logic;
 	signal tilegen_start         : std_logic := '0';
-	signal tilegen_tile_num_in   : integer := 0;
+	signal tilegen_tile_num_in   : integer   := 0;
 
 	-----------------------------------------
 	signal tilebuf_clear      : std_logic := '0';
 	signal tilebuf_clear_done : std_logic;
-	
-	signal depth_in : unsigned(15 downto 0);
-	signal depth_out : unsigned(15 downto 0);
+
+	signal depth_in   : unsigned(15 downto 0);
+	signal depth_out  : unsigned(15 downto 0);
 	signal depth_wren : std_logic;
 
-	signal clk150 : std_logic;
+	signal clk150     : std_logic;
+	signal pll_locked : STD_LOGIC;
+
+	signal enable_drawing : std_logic := '0';
 
 begin
 
@@ -137,7 +147,8 @@ begin
 			inclk0 => CLK_50,
 			c0     => fb_initializer_clk,
 			c1     => fb_disp_clk,
-			c2 => clk150
+			c2     => clk150,
+			locked => pll_locked
 		);
 
 	fb_lo_level_driver0 : entity work.fb_lo_level_driver
@@ -192,12 +203,12 @@ begin
 
 	tile_buffer0 : entity work.tile_buffer
 		port map(
-			screen_clk        => fb_clk,
+			screen_clk        => fb_disp_clk,
 			screen_posx       => screen_posx,
 			screen_posy       => screen_posy,
 			color_out         => screen_pixel_color,
 			----------
-			tilegen_clk       => fb_initializer_clk,
+			tilegen_clk       => fb_disp_clk,
 			tilegen_posx      => tilegen_posx_out,
 			tilegen_posy      => tilegen_posy_out,
 			tilegen_put_pixel => tilegen_put_pixel_out,
@@ -209,13 +220,13 @@ begin
 			----------
 			depth_in          => depth_in,
 			depth_out         => depth_out,
-			clk50 => clk150,
-			depth_wren => depth_wren
+			clk50             => clk150,
+			depth_wren        => depth_wren
 		);
 
 	tile_system0 : entity work.tile_system
 		port map(
-			clk           => fb_initializer_clk,
+			clk           => fb_disp_clk,
 			rst           => not rst,
 			posx_out      => tilegen_posx_out,
 			posy_out      => tilegen_posy_out,
@@ -225,9 +236,9 @@ begin
 			ready_out     => tilegen_ready,
 			start_in      => tilegen_start,
 			tile_num_in   => tilegen_tile_num_in,
-			depth_in => depth_in,
-			depth_out => depth_out,
-			depth_wren => depth_wren
+			depth_in      => depth_in,
+			depth_out     => depth_out,
+			depth_wren    => depth_wren
 		);
 
 	led_blinker0 : entity work.led_blinker
@@ -249,33 +260,64 @@ begin
 	fb_op_start   <= fb_initializer_op_start when fb_initializer_enabled = '1' else fb_disp_op_start;
 	fb_op         <= fb_initializer_op when fb_initializer_enabled = '1' else fb_disp_op;
 
-	process(fb_clk, rst) is
+	process(fb_initializer_clk, rst) is
 	begin
 		if rst = '0' then
-			state <= st_start;
-		elsif rising_edge(fb_clk) then
-			case state is
+			state_init <= st_start;
+		elsif rising_edge(fb_initializer_clk) then
+			case state_init is
 				when st_start =>
 					LED(2)                 <= '0';
 					fb_initializer_enabled <= '1';
-					fb_disp_start_write    <= '0';
-					tilegen_start          <= '0';
-					tilegen_tile_num_in    <= 0;
-					state                  <= st_fb_init;
+					enable_drawing         <= '0';
+
+					if pll_locked = '1' then
+						state_init <= st_fb_init;
+					else
+						state_init <= st_start;
+					end if;
 
 				-- INIT FRAMEBUFFER
 
 				when st_fb_init =>
 					fb_init_start <= '1';
-					state         <= st_fb_init_wait;
+					state_init    <= st_fb_init_wait;
 
 				when st_fb_init_wait =>
 					fb_init_start <= '0';
 					if fb_init_done = '1' then
 						fb_initializer_enabled <= '0';
-						state                  <= st_disp_clear;
+						enable_drawing         <= '1';
+						state_init             <= st_idle;
 					else
-						state <= st_fb_init_wait;
+						state_init <= st_fb_init_wait;
+					end if;
+
+				when st_idle =>
+					state_init <= st_idle;
+			end case;
+		end if;
+	end process;
+
+	process(fb_disp_clk, rst) is
+	begin
+		if rst = '0' then
+			state_drawing <= st_start;
+		elsif rising_edge(fb_disp_clk) then
+			case state_drawing is
+
+				when st_start =>
+					fb_disp_start_write <= '0';
+					tilegen_start       <= '0';
+					tilegen_tile_num_in <= 0;
+					state_drawing       <= st_wait;
+
+				when st_wait =>
+
+					if enable_drawing = '1' then
+						state_drawing <= st_disp_clear;
+					else
+						state_drawing <= st_wait;
 					end if;
 
 				-- CLEAR SCREEN
@@ -285,42 +327,42 @@ begin
 					fb_disp_clear       <= '1';
 					fb_disp_clear_color <= (r => X"00", g => X"00", b => X"FF");
 					fb_disp_window_rect <= FULLSCREEN_RECT;
-					state               <= st_disp_clear_wait;
+					state_drawing       <= st_disp_clear_wait;
 
 				when st_disp_clear_wait =>
 					fb_disp_start_write <= '0';
 					fb_disp_clear       <= '0';
 
 					if fb_disp_write_done = '1' then
-						state <= st_tilegen_clear;
+						state_drawing <= st_tilegen_clear;
 					else
-						state <= st_disp_clear_wait;
+						state_drawing <= st_disp_clear_wait;
 					end if;
 
 				-- GENERATE TILE
 
 				when st_tilegen_clear =>
 					tilebuf_clear <= '1';
-					state         <= st_tilegen_clear_wait;
+					state_drawing <= st_tilegen_clear_wait;
 
 				when st_tilegen_clear_wait =>
 					tilebuf_clear <= '0';
 					if tilebuf_clear_done = '1' then
-						state <= st_init_tilegen;
+						state_drawing <= st_init_tilegen;
 					else
-						state <= st_tilegen_clear_wait;
+						state_drawing <= st_tilegen_clear_wait;
 					end if;
 
 				when st_init_tilegen =>
 					tilegen_start <= '1';
-					state         <= st_tilegen_wait;
+					state_drawing <= st_tilegen_wait;
 
 				when st_tilegen_wait =>
 					tilegen_start <= '0';
 					if tilegen_ready = '1' then
-						state <= st_screen_write;
+						state_drawing <= st_screen_write;
 					else
-						state <= st_tilegen_wait;
+						state_drawing <= st_tilegen_wait;
 					end if;
 
 				-- DISPLAY IMAGE
@@ -328,15 +370,15 @@ begin
 				when st_screen_write =>
 					fb_disp_clear       <= '0';
 					fb_disp_start_write <= '1';
-					state               <= st_screen_wait;
+					state_drawing       <= st_screen_wait;
 					fb_disp_window_rect <= screen_tile_rect;
 
 				when st_screen_wait =>
 					fb_disp_start_write <= '0';
 					if fb_disp_write_done = '1' then
-						state <= st_next_tile;
+						state_drawing <= st_next_tile;
 					else
-						state <= st_screen_wait;
+						state_drawing <= st_screen_wait;
 					end if;
 
 				-- TILE GENERATION MANAGEMENT
@@ -344,10 +386,10 @@ begin
 				when st_next_tile =>
 					if tilegen_tile_num_in <= 20 - 2 then
 						tilegen_tile_num_in <= tilegen_tile_num_in + 1;
-						state               <= st_tilegen_clear;
+						state_drawing       <= st_tilegen_clear;
 					else
 						tilegen_tile_num_in <= 0;
-						state               <= st_tilegen_clear;
+						state_drawing       <= st_tilegen_clear;
 						--						state <= st_disp_clear;
 					end if;
 
