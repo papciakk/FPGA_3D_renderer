@@ -223,13 +223,20 @@ set_global_assignment -name NUM_PARALLEL_PROCESSORS ALL
 set_global_assignment -name ENABLE_CONFIGURATION_PINS OFF
 set_global_assignment -name ENABLE_NCE_PIN OFF
 set_global_assignment -name ENABLE_BOOT_SEL_PIN OFF
+set_global_assignment -name VHDL_FILE src/vendor/txt_util.vhdl
+set_global_assignment -name VHDL_FILE src/debug/pritf.vhd
+set_global_assignment -name VHDL_FILE src/uart/uart_transmitter.vhd
+set_global_assignment -name VHDL_FILE src/uart/uart_receiver.vhd
+set_global_assignment -name VHDL_FILE "src/uart/uart_receiver buffer.vhd"
+set_global_assignment -name VHDL_FILE src/uart/uart_baudrate_generator.vhd
+set_global_assignment -name VHDL_FILE src/debug/single_measurment.vhd
+set_global_assignment -name VHDL_FILE src/tile/tile_buffer.vhd
 set_global_assignment -name VHDL_FILE src/generated/tile_depth_ram.vhd
 set_global_assignment -name VHDL_FILE src/vendor/float_pkg_c.vhdl
 set_global_assignment -name VHDL_FILE src/vendor/fixed_pkg_c.vhdl
 set_global_assignment -name VHDL_FILE src/vendor/fixed_float_types_c.vhdl
 set_global_assignment -name VHDL_FILE src/snf0.vhd
 set_global_assignment -name VHDL_FILE src/tile/tile_generator.vhd
-set_global_assignment -name VHDL_FILE src/tile/tile_buffer.vhd
 set_global_assignment -name VHDL_FILE src/renderer/triangle_renderer.vhd
 set_global_assignment -name VHDL_FILE src/renderer/renderer_mesh.vhd
 set_global_assignment -name VHDL_FILE src/generated/tile_ram.vhd
@@ -243,11 +250,11 @@ set_global_assignment -name VHDL_FILE src/common/led_blinker.vhd
 set_global_assignment -name VHDL_FILE src/common/common.vhd
 set_global_assignment -name VHDL_FILE tile_system.vhd
 set_global_assignment -name QIP_FILE src/generated/tile_ram.qip
-set_global_assignment -name SIGNALTAP_FILE output_files/stp1.stp
 set_global_assignment -name QIP_FILE src/generated/pll.qip
 set_global_assignment -name CDF_FILE output_files/snf0.cdf
-set_global_assignment -name QIP_FILE src/generated/tile_depth_ram.qip
 set_global_assignment -name SDC_FILE snf0.sdc
 set_global_assignment -name QIP_FILE src/generated/sqrt.qip
 set_global_assignment -name QIP_FILE src/generated/depth_buf.qip
+set_global_assignment -name SIGNALTAP_FILE output_files/stp2.stp
+set_global_assignment -name SIGNALTAP_FILE output_files/stp1.stp
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

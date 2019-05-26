@@ -1,5 +1,6 @@
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.std_logic_misc.all;
 use ieee.numeric_std.all;
 use work.fb_types.all;
 use work.common.all;
@@ -11,8 +12,8 @@ entity snf0 is
 		--		CLK_50_2       : in    std_logic;
 		--		PS2_CLK        : inout std_logic;
 		--		PS2_DATA       : inout std_logic;
-		--		UART_RXD       : in    std_logic;
-		--		UART_TXD       : out   std_logic;
+		UART_RXD     : in    std_logic;
+		UART_TXD     : out   std_logic;
 		--		SRAM_CLK       : out   std_logic;
 		--		SRAM_ADDR      : out   std_logic_vector(18 downto 0);
 		--		SRAM_DQ        : inout std_logic_vector(31 downto 0);
@@ -50,6 +51,9 @@ entity snf0 is
 end snf0;
 
 architecture behavioral of snf0 is
+	
+	constant DELAY_IN_TICKS : integer := 2500000;
+	
 	type fsm_state_type is (
 		st_idle,
 		st_start,
@@ -58,6 +62,7 @@ architecture behavioral of snf0 is
 
 	type drawing_state_type is (
 		st_start,
+		st_delay,
 		st_wait,
 		st_screen_write,
 		st_init_tilegen, st_tilegen_wait,
@@ -138,6 +143,13 @@ architecture behavioral of snf0 is
 	signal pll_locked : STD_LOGIC;
 
 	signal enable_drawing : std_logic := '0';
+
+	signal measurment0_run   : std_logic := '0';
+	signal measurment0_value : u32;
+	signal measurment0_done  : std_logic;
+	signal delay_counter : integer;
+	signal measurment_send : std_logic := '0';
+	signal printf0_val : integer;
 
 begin
 
@@ -251,7 +263,26 @@ begin
 			led   => LED(1)
 		);
 
+	measurment0 : entity work.single_measurment
+		port map(
+			clk   => CLK_50,
+			rst   => not rst,
+			run   => measurment0_run,
+			value => measurment0_value,
+			done  => measurment0_done
+		);
+
+	pritf0 : entity work.printf
+		port map(
+			send => 	measurment_send,
+			clk      => CLK_50,
+			rst      => not rst,
+			uart_txd => UART_TXD,
+			val      => printf0_val
+		);
+
 	LED(0) <= rst;
+	LED(2) <= xor_reduce(std_logic_vector(measurment0_value));
 
 	rst <= BTN(0);
 
@@ -267,7 +298,6 @@ begin
 		elsif rising_edge(fb_initializer_clk) then
 			case state_init is
 				when st_start =>
-					LED(2)                 <= '0';
 					fb_initializer_enabled <= '1';
 					enable_drawing         <= '0';
 
@@ -311,9 +341,17 @@ begin
 					tilegen_start       <= '0';
 					tilegen_tile_num_in <= 0;
 					state_drawing       <= st_wait;
+					measurment0_run     <= '0';
+					delay_counter <= 0;
+
+				when st_delay =>
+					if delay_counter < DELAY_IN_TICKS then
+						state_drawing <= st_delay;
+					else
+						state_drawing <= st_wait;
+					end if;
 
 				when st_wait =>
-
 					if enable_drawing = '1' then
 						state_drawing <= st_disp_clear;
 					else
@@ -341,9 +379,11 @@ begin
 
 				-- GENERATE TILE
 
-				when st_tilegen_clear =>
-					tilebuf_clear <= '1';
-					state_drawing <= st_tilegen_clear_wait;
+			when st_tilegen_clear =>
+					measurment_send <= '0';
+					measurment0_run <= '1';
+					tilebuf_clear   <= '1';
+					state_drawing   <= st_tilegen_clear_wait;
 
 				when st_tilegen_clear_wait =>
 					tilebuf_clear <= '0';
@@ -389,12 +429,14 @@ begin
 						state_drawing       <= st_tilegen_clear;
 					else
 						tilegen_tile_num_in <= 0;
+						measurment0_run     <= '0';
+						measurment_send <= '1';
+						printf0_val <= to_integer(measurment0_value);
+						
 						state_drawing       <= st_tilegen_clear;
-						--						state <= st_disp_clear;
 					end if;
 
 				when st_end =>
-					null;
 			end case;
 		end if;
 	end process;

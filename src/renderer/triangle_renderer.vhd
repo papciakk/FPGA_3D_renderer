@@ -210,8 +210,8 @@ begin
 --						b => std_logic_vector(b)(7 downto 0)
 --					);
 --							color_out <= (
---								r => X"FF",
---								g => X"FF",
+--								r => X"00",
+--								g => X"5F",
 --								b => X"FF"
 --							);
 
