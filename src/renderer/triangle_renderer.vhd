@@ -199,16 +199,16 @@ begin
 				if unsigned(std_logic_vector(depth+127))(15 downto 0) > depth_out_latch then
 					depth_wren <= '1';
 					depth_buf_in <= unsigned(std_logic_vector(depth+127))(15 downto 0);
+					--color_out <= (
+					--	r => std_logic_vector(depth)(7 downto 0),
+					--	g => std_logic_vector(depth)(7 downto 0),
+					--	b => std_logic_vector(depth)(7 downto 0)
+					--);
 					color_out <= (
-						r => std_logic_vector(depth)(7 downto 0),
-						g => std_logic_vector(depth)(7 downto 0),
-						b => std_logic_vector(depth)(7 downto 0)
+						r => std_logic_vector(r)(7 downto 0),
+						g => std_logic_vector(g)(7 downto 0),
+						b => std_logic_vector(b)(7 downto 0)
 					);
---					color_out <= (
---						r => std_logic_vector(r)(7 downto 0),
---						g => std_logic_vector(g)(7 downto 0),
---						b => std_logic_vector(b)(7 downto 0)
---					);
 --							color_out <= (
 --								r => X"00",
 --								g => X"5F",

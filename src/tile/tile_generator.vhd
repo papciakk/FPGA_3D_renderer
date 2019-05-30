@@ -176,18 +176,18 @@ begin
 
 				area_next   <= area_v;
 				depths_next <= point3d(v1.pos.y, v2.pos.y, v3.pos.y);
-									colors_next <= (
-										color(v1.normal.x, v1.normal.y, v1.normal.z),
-										color(v2.normal.x, v2.normal.y, v2.normal.z),
-										color(v3.normal.x, v3.normal.y, v3.normal.z)
+				--					colors_next <= (
+				--						color(v1.normal.x, v1.normal.y, v1.normal.z),
+				--						color(v2.normal.x, v2.normal.y, v2.normal.z),
+				--						color(v3.normal.x, v3.normal.y, v3.normal.z)
 										
-									);
+				--					);
 
---				colors_next <= (
---					color1,
---					color2,
---					color3
---				);
+				colors_next <= (
+					color1,
+					color2,
+					color3
+				);
 
 				--									color_out <= (
 				--										r => std_logic_vector(v2.normal.x(7 downto 0)),
