@@ -69,9 +69,6 @@ package common is
 	-- CONSTANTS
 
 	constant BITS_PER_PIXEL : integer := 24;
-
-	--constant TILE_RES_X : integer := 128;
-	--constant TILE_RES_Y : integer := 120;
 	
 	constant TILE_RES_X : integer := 128;
 	constant TILE_RES_Y : integer := 120;
