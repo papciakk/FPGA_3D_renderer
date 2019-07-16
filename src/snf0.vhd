@@ -4,7 +4,7 @@ use ieee.std_logic_misc.all;
 use ieee.numeric_std.all;
 use work.fb_types.all;
 use work.common.all;
-use work.pll;
+use work.all;
 
 entity snf0 is
 	port(
@@ -34,9 +34,9 @@ entity snf0 is
 		VGA1_WR_n    : out   std_logic;
 		VGA1_RESET_n : out   std_logic;
 		--		VGA1_TE        : in    std_logic;
-		VGA1_R       : inout std_logic_vector(7 downto 0);
-		VGA1_G       : out   std_logic_vector(7 downto 0);
-		VGA1_B       : out   std_logic_vector(7 downto 0);
+		VGA1_R       : inout slv8_t;
+		VGA1_G       : out   slv8_t;
+		VGA1_B       : out   slv8_t;
 		--		VGA2_R         : out   std_logic;
 		--		VGA2_G         : out   std_logic;
 		--		VGA2_B         : out   std_logic;
@@ -83,18 +83,18 @@ architecture behavioral of snf0 is
 	signal fb_initializer_enabled : std_logic := '1';
 
 	signal fb_clk        : std_logic;
-	signal fb_data_write : std_logic_vector(7 downto 0);
+	signal fb_data_write : slv8_t;
 	signal fb_op_start   : std_logic;
 	signal fb_op         : fb_lo_level_op_type;
 	signal fb_op_done    : std_logic;
 
 	signal fb_initializer_clk        : std_logic;
-	signal fb_initializer_data_write : std_logic_vector(7 downto 0);
+	signal fb_initializer_data_write : slv8_t;
 	signal fb_initializer_op_start   : std_logic;
 	signal fb_initializer_op         : fb_lo_level_op_type;
 
 	signal fb_disp_clk        : std_logic;
-	signal fb_disp_data_write : std_logic_vector(7 downto 0);
+	signal fb_disp_data_write : slv8_t;
 	signal fb_disp_op_start   : std_logic;
 	signal fb_disp_op         : fb_lo_level_op_type;
 
@@ -107,8 +107,8 @@ architecture behavioral of snf0 is
 	signal fb_disp_write_done  : std_logic;
 
 	-- framebuffer display out position, color input and window
-	signal screen_posx        : unsigned(15 downto 0);
-	signal screen_posy        : unsigned(15 downto 0);
+	signal screen_posx        : uint16_t;
+	signal screen_posy        : uint16_t;
 	signal screen_pixel_color : color_t;
 
 	signal screen_tile_rect    : rect_t;
@@ -117,14 +117,14 @@ architecture behavioral of snf0 is
 
 	----------------------------------------
 
-	signal fb_data_read : std_logic_vector(7 downto 0);
+	signal fb_data_read : slv8_t;
 
 	signal fb_init_start : std_logic := '0';
 	signal fb_init_done  : std_logic;
 
 	-----------------------------------------
-	signal tilegen_posx_out      : unsigned(15 downto 0);
-	signal tilegen_posy_out      : unsigned(15 downto 0);
+	signal tilegen_posx_out      : uint16_t;
+	signal tilegen_posy_out      : uint16_t;
 	signal tilegen_color_out     : color_t;
 	signal tilegen_put_pixel_out : std_logic;
 	signal tilegen_ready         : std_logic;
@@ -135,17 +135,17 @@ architecture behavioral of snf0 is
 	signal tilebuf_clear      : std_logic := '0';
 	signal tilebuf_clear_done : std_logic;
 
-	signal depth_in   : unsigned(15 downto 0);
-	signal depth_out  : unsigned(15 downto 0);
+	signal depth_in   : uint16_t;
+	signal depth_out  : uint16_t;
 	signal depth_wren : std_logic;
 
 	signal clk150     : std_logic;
-	signal pll_locked : STD_LOGIC;
+	signal pll_locked : std_logic;
 
 	signal enable_drawing : std_logic := '0';
 
 	signal measurment0_run   : std_logic := '0';
-	signal measurment0_value : u32;
+	signal measurment0_value : uint32_t;
 	signal measurment0_done  : std_logic;
 	signal delay_counter : integer;
 	signal measurment_send : std_logic := '0';

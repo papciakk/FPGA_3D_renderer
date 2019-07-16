@@ -2,6 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.common.all;
+use work.rendering_common.all;
 
 entity renderer_triangle is
 	port(
@@ -14,7 +15,7 @@ entity renderer_triangle is
 		posy_out      : out unsigned(15 downto 0);
 		start_in      : in  std_logic;
 		ready_out     : out std_logic;
-		area_in       : in  s32;
+		area_in       : in  int32_t;
 		depths_in     : in  point3d_t;
 		colors_in     : in  triangle_colors_t;
 		color_out     : out color_t;
@@ -30,56 +31,30 @@ architecture RTL of renderer_triangle is
 
 	signal render_rect_latch, render_rect_latch_next : srect_t;
 
-	function get_triangle_bounding_box(triangle : triangle2d_t) return srect_t is
-	begin
-		return (
-			x0 => minimum3(triangle(0).x, triangle(1).x, triangle(2).x),
-			y0 => minimum3(triangle(0).y, triangle(1).y, triangle(2).y),
-			x1 => maximum3(triangle(0).x, triangle(1).x, triangle(2).x),
-			y1 => maximum3(triangle(0).y, triangle(1).y, triangle(2).y)
-		);
-	end function;
-
-	function get_triangle_and_tile_intersected_bounding_box(triangle_bb : srect_t; tile_bb : rect_t) return srect_t is
-	begin
-		return (
-			x0 => maximum2(triangle_bb.x0, to_s16(tile_bb.x0)),
-			y0 => maximum2(triangle_bb.y0, to_s16(tile_bb.y0)),
-			x1 => minimum2(triangle_bb.x1, to_s16(tile_bb.x1)),
-			y1 => minimum2(triangle_bb.y1, to_s16(tile_bb.y1))
-		);
-	end function;
-
-	function get_current_rendering_bounding_box(triangle : triangle2d_t; tile_rect : rect_t) return srect_t is
-	begin
-		return get_triangle_and_tile_intersected_bounding_box(
-			get_triangle_bounding_box(triangle),
-			tile_rect
-		);
-	end function;
+	
 
 	signal depth_out_latch : unsigned(15 downto 0);
 
 	-- TRIANGLE RENDERING
 
-	signal cntx, cntx_next : s16 := (others => '0');
-	signal cnty, cnty_next : s16 := (others => '0');
+	signal cntx, cntx_next : int16_t := (others => '0');
+	signal cnty, cnty_next : int16_t := (others => '0');
 
 	signal put_pixel_out_next : std_logic := '0';
 	signal ready_out_next     : std_logic := '0';
 
 	signal triangle_latch, triangle_latch_next : triangle2d_t := (point2d(0, 0), point2d(0, 0), point2d(0, 0));
 
-	function cross_product(x, y : s16; p2, p3 : point2d_t) return s32 is
+	function cross_product(x, y : int16_t; p2, p3 : point2d_t) return int32_t is
 	begin
 		return ((x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (y - p3.y));
 	end function;
 	
 	function interpolate_color_component(
 		c0, c1, c2 : std_logic_vector(7 downto 0);
-		e0, e1, e2 : s32;
-		area : s32
-	) return s32 is
+		e0, e1, e2 : int32_t;
+		area : int32_t
+	) return int32_t is
 	begin
 		return resize(
 				e0 * signed('0' & c0) + 
@@ -96,8 +71,8 @@ architecture RTL of renderer_triangle is
 	signal state, state_next : state_type := st_start;
 
 begin
-	posx_out <= to_u16_with_cut(cntx);
-	posy_out <= to_u16_with_cut(cnty);
+	posx_out <= uint16_with_cut(cntx);
+	posy_out <= uint16_with_cut(cnty);
 
 	process(clk, rst) is
 	begin
@@ -115,9 +90,9 @@ begin
 	end process;
 
 	process(state, cntx, cnty, render_rect_latch.x0, render_rect_latch.x1, render_rect_latch.y0, render_rect_latch.y1, put_pixel_out, ready_out, start_in, render_rect_latch, tile_rect_in, triangle_in, triangle_latch, area_in, depths_in.x, depths_in.y, depths_in.z, colors_in(0).b, colors_in(0).g, colors_in(0).r, colors_in(1).r, colors_in(2).r, colors_in(1).b, colors_in(1).g, colors_in(2).b, colors_in(2).g, depth_buf_out, depth_out_latch) is
-		variable e0, e1, e2 : s32;
+		variable e0, e1, e2 : int32_t;
 		variable depth      : signed(47 downto 0);
-		variable r, g, b : s32;
+		variable r, g, b : int32_t;
 	begin
 		state_next             <= state;
 		put_pixel_out_next     <= put_pixel_out;

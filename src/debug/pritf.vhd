@@ -24,13 +24,14 @@ architecture RTL of printf is
 	signal uart_start_transmit, uart_start_transmit_next : std_logic := '0';
 	signal uart_baudrate_tick                            : std_logic;
 
-	signal val_d, val_d_next         : unsigned(31 downto 0);
-	signal val_char, val_char_next   : unsigned(3 downto 0);
-	signal uart_char, uart_char_next : unsigned(7 downto 0);
+	signal val_d, val_d_next         : uint32_t;
+	signal val_char, val_char_next   : uint4_t;
+	signal uart_char, uart_char_next : uint8_t;
 
-	type buf_arr_t is array (7 downto 0) of u8;
+	type buf_arr_t is array (7 downto 0) of uint8_t;
+	
 	signal buf_arr                               : buf_arr_t;
-	signal buf_arr_pointer, buf_arr_pointer_next : s8;
+	signal buf_arr_pointer, buf_arr_pointer_next : int8_t;
 
 	function hex_to_ascii(val : unsigned(3 downto 0)) return unsigned is
 		variable v : integer;
@@ -115,9 +116,9 @@ begin
 			when st_idle =>
 				uart_start_transmit_next <= '0';
 				if send = '1' then
-					state_next <= st_print_integer;
+					state_next           <= st_print_integer;
 					buf_arr_pointer_next <= (others => '0');
-					val_d_next <= to_unsigned(val, 32);
+					val_d_next           <= to_unsigned(val, 32);
 				else
 					state_next <= st_idle;
 				end if;
@@ -133,8 +134,8 @@ begin
 				buf_arr(to_integer(buf_arr_pointer)) <= hex_to_ascii(val_char);
 
 				if val_d > 0 then
-					buf_arr_pointer_next                 <= buf_arr_pointer + 1;
-					state_next <= st_print_integer;
+					buf_arr_pointer_next <= buf_arr_pointer + 1;
+					state_next           <= st_print_integer;
 				else
 					state_next <= st_send_char_start;
 				end if;

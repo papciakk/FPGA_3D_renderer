@@ -37,7 +37,7 @@ architecture bahavioral of tile_generator is
 	);
 	signal state, state_next : state_type := st_start;
 
-	signal area, area_next     : s32;
+	signal area, area_next     : int32_t;
 	signal depths, depths_next : point3d_t;
 	signal colors, colors_next : triangle_colors_t;
 
@@ -46,7 +46,7 @@ architecture bahavioral of tile_generator is
 		variable diffuse     : std_logic_vector(7 downto 0);
 		variable diffuse_1 : unsigned(47 downto 0);
 		
-		constant light_dir : point3d_32t := (
+		constant light_dir : point3d_32_t := (
 			z => to_signed(180, 32),
 			y => (others => '0'),
 			x => to_signed(180, 32)
@@ -74,9 +74,9 @@ architecture bahavioral of tile_generator is
 
 		return (
 			pos    => (
-				x => vertex.pos.x / 128 + 320,
+				x => vertex.pos.x / 128 + HALF_FULLSCREEN_RES_X,
 				y => vertex.pos.y / 128,
-				z => vertex.pos.z / 128 + 240
+				z => vertex.pos.z / 128 + HALF_FULLSCREEN_RES_Y
 			),
 			normal => (
 				x => vertex.normal.x,
@@ -135,7 +135,7 @@ begin
 
 	process(state, current_triangle_index, trianglegen_ready, start_rendering, triangle, start_in, ready_out, area, depths, colors) is
 		variable v1, v2, v3 : vertex_attr_t;
-		variable area_v     : s32;
+		variable area_v     : int32_t;
 
 		variable color1, color2, color3 : color_t;
 

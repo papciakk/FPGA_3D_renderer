@@ -8,7 +8,7 @@ entity single_measurment is
 		clk   : in  std_logic;
 		rst   : in  std_logic;
 		run   : in  std_logic;
-		value : out u32;
+		value : out uint32_t;
 		done  : out std_logic
 	);
 end entity single_measurment;

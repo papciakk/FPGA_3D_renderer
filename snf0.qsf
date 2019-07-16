@@ -176,7 +176,7 @@ set_location_assignment PIN_76 -to VGA2_R
 set_location_assignment PIN_63 -to VGA2_VSync
 set_global_assignment -name TIMEQUEST_MULTICORNER_ANALYSIS ON
 set_global_assignment -name SMART_RECOMPILE ON
-set_global_assignment -name USE_CONFIGURATION_DEVICE ON
+set_global_assignment -name USE_CONFIGURATION_DEVICE OFF
 set_global_assignment -name CYCLONEIII_CONFIGURATION_DEVICE EPCS128
 set_global_assignment -name CRC_ERROR_OPEN_DRAIN OFF
 set_global_assignment -name FORCE_CONFIGURATION_VCCIO ON
@@ -223,6 +223,10 @@ set_global_assignment -name NUM_PARALLEL_PROCESSORS ALL
 set_global_assignment -name ENABLE_CONFIGURATION_PINS OFF
 set_global_assignment -name ENABLE_NCE_PIN OFF
 set_global_assignment -name ENABLE_BOOT_SEL_PIN OFF
+set_global_assignment -name PHYSICAL_SYNTHESIS_ASYNCHRONOUS_SIGNAL_PIPELINING OFF
+set_global_assignment -name TIMEQUEST_DO_REPORT_TIMING ON
+set_global_assignment -name TIMEQUEST_DO_CCPP_REMOVAL ON
+set_global_assignment -name VHDL_FILE src/common/rendering_common.vhd
 set_global_assignment -name VHDL_FILE src/vendor/txt_util.vhdl
 set_global_assignment -name VHDL_FILE src/debug/pritf.vhd
 set_global_assignment -name VHDL_FILE src/uart/uart_transmitter.vhd
@@ -252,7 +256,6 @@ set_global_assignment -name VHDL_FILE tile_system.vhd
 set_global_assignment -name QIP_FILE src/generated/tile_ram.qip
 set_global_assignment -name QIP_FILE src/generated/pll.qip
 set_global_assignment -name CDF_FILE output_files/snf0.cdf
-set_global_assignment -name SDC_FILE snf0.sdc
 set_global_assignment -name QIP_FILE src/generated/sqrt.qip
 set_global_assignment -name QIP_FILE src/generated/depth_buf.qip
 set_global_assignment -name SIGNALTAP_FILE output_files/stp2.stp

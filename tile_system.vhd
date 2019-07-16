@@ -7,17 +7,17 @@ entity tile_system is
 	port(
 		clk           : in  std_logic;
 		rst           : in  std_logic;
-		posx_out      : out u16;
-		posy_out      : out u16;
+		posx_out      : out uint16_t;
+		posy_out      : out uint16_t;
 		color_out     : out color_t;
 		put_pixel_out : out std_logic;
 		tile_rect_out : out rect_t;
 		ready_out     : out std_logic;
 		start_in      : in  std_logic;
 		tile_num_in   : in  integer;
-		depth_in : out unsigned(15 downto 0);
-		depth_out : in unsigned(15 downto 0);
-		depth_wren : out std_logic
+		depth_in      : out uint16_t;
+		depth_out     : in  uint16_t;
+		depth_wren    : out std_logic
 	);
 end entity tile_system;
 
@@ -41,14 +41,8 @@ architecture bahavioral of tile_system is
 		);
 	end function;
 
-	signal untransposed_posx, untransposed_posy : u16;
-	--	signal current_tile_rect                    : rect_t := (
-	--		x0 => to_unsigned(100, 16),
-	--		y0 => to_unsigned(100, 16),
-	--		x1 => to_unsigned(200, 16),
-	--		y1 => to_unsigned(200, 16)
-	--	);
-
+	signal untransposed_posx, untransposed_posy : uint16_t;
+	
 	type rect_arr_t is array (natural range <>) of rect_t;
 	function prepare_tile_rects return rect_arr_t is
 		constant TILES_X_CNT : integer := integer(real(FULLSCREEN_RES_X) / real(TILE_RES_X));
@@ -80,9 +74,9 @@ begin
 			tile_rect_in          => current_tile_rect,
 			start_in              => start_rendering_tile,
 			ready_out             => tile_rendered,
-			depth_in => depth_in,
-			depth_out => depth_out,
-			depth_wren => depth_wren
+			depth_in              => depth_in,
+			depth_out             => depth_out,
+			depth_wren            => depth_wren
 		);
 
 	posx_out <= untransposed_posx - current_tile_rect.x0;
