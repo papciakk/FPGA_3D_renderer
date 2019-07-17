@@ -63,8 +63,7 @@ architecture RTL of renderer_triangle is
 
 	type state_type is (
 		st_start, st_idle, st_render, st_finished, st_start_render, st_wait_0,
-		st_render_e0, st_render_e1, st_render_e2, st_render_1, st_render_2,
-		st_interpolate_r, st_interpolate_g, st_interpolate_b
+		st_render_0
 	);
 	signal state, state_next : state_type := st_start;
 
@@ -136,8 +135,7 @@ begin
 
 				if cnty <= render_rect_latch.y1 then
 					if cntx < render_rect_latch.x1 then
-						e0         := cross_product(cntx, cnty, triangle_latch(0), triangle_latch(1));
-						state_next <= st_render_e1;
+						state_next <= st_render_0;
 					else
 						cntx_next <= render_rect_latch.x0;
 						cnty_next <= cnty + 1;
@@ -148,60 +146,47 @@ begin
 					state_next         <= st_idle;
 				end if;
 
-			when st_render_e0 =>
-
-				state_next <= st_render_e1;
-
-			when st_render_e1 =>
-				e1         := cross_product(cntx, cnty, triangle_latch(1), triangle_latch(2));
-				state_next <= st_render_e2;
-
-			when st_render_e2 =>
-				e2         := cross_product(cntx, cnty, triangle_latch(2), triangle_latch(0));
-				state_next <= st_render_1;
-
-			when st_render_1 =>
+			when st_render_0 =>
+				e0 := cross_product(cntx, cnty, triangle_latch(0), triangle_latch(1));
+				e1 := cross_product(cntx, cnty, triangle_latch(1), triangle_latch(2));
+				e2 := cross_product(cntx, cnty, triangle_latch(2), triangle_latch(0));
 
 				if e0 <= 0 and e1 <= 0 and e2 <= 0 then
 
-					state_next <= st_interpolate_r;
+					r := interpolate_color_component(colors_in(2).r, colors_in(0).r, colors_in(1).r, e0, e1, e2, area_in);
+					g := interpolate_color_component(colors_in(2).g, colors_in(0).g, colors_in(1).g, e0, e1, e2, area_in);
+					b := interpolate_color_component(colors_in(2).b, colors_in(0).b, colors_in(1).b, e0, e1, e2, area_in);
+					----							
+
+					depth_out_latch <= depth_buf_out;
+					depth           := 256 - (e0 * depths_in.z + e1 * depths_in.x + e2 * depths_in.y) / area_in;
+
+					state_next <= st_wait_0;
 				else
-					cntx_next  <= cntx + 1;
+					cntx_next <= cntx + 1;
 					state_next <= st_render;
 				end if;
-
-			when st_interpolate_r =>
-				r          := interpolate_color_component(colors_in(2).r, colors_in(0).r, colors_in(1).r, e0, e1, e2, area_in);
-				state_next <= st_interpolate_g;
-
-			when st_interpolate_g =>
-				g          := interpolate_color_component(colors_in(2).g, colors_in(0).g, colors_in(1).g, e0, e1, e2, area_in);
-				state_next <= st_interpolate_b;
-
-			when st_interpolate_b =>
-				b          := interpolate_color_component(colors_in(2).b, colors_in(0).b, colors_in(1).b, e0, e1, e2, area_in);
-				state_next <= st_render_2;
-
-			when st_render_2 =>
-				depth_out_latch <= depth_buf_out;
-				depth           := 256 - (e0 * depths_in.z + e1 * depths_in.x + e2 * depths_in.y) / area_in;
-				state_next      <= st_wait_0;
 
 			when st_wait_0 =>
 				depth_wren <= '0';
 				if unsigned(std_logic_vector(depth + 127))(15 downto 0) > depth_out_latch then
 					depth_wren   <= '1';
 					depth_buf_in <= unsigned(std_logic_vector(depth + 127))(15 downto 0);
-					color_out    <= (
-						r => std_logic_vector(r)(7 downto 0),
-						g => std_logic_vector(g)(7 downto 0),
-						b => std_logic_vector(b)(7 downto 0)
-					);
-					--					color_out    <= (
-					--						r => X"00",
-					--						g => X"5F",
-					--						b => X"FF"
+					--color_out <= (
+					--	r => std_logic_vector(depth)(7 downto 0),
+					--	g => std_logic_vector(depth)(7 downto 0),
+					--	b => std_logic_vector(depth)(7 downto 0)
+					--);
+					--					color_out <= (
+					--						r => std_logic_vector(r)(7 downto 0),
+					--						g => std_logic_vector(g)(7 downto 0),
+					--						b => std_logic_vector(b)(7 downto 0)
 					--					);
+					color_out    <= (
+						r => X"00",
+						g => X"5F",
+						b => X"FF"
+					);
 
 					put_pixel_out_next <= '1';
 				else

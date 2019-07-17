@@ -33,13 +33,19 @@ architecture bahavioral of tile_generator is
 	signal rand : std_logic_vector(31 downto 0);
 
 	type state_type is (
-		st_start, st_render_task, st_render_task_wait, st_finished, st_idle
+		st_start, st_render_task, st_render_task_wait, st_finished, st_idle,
+		st_0, st_1, st_2, st_3, st_4, st_5
 	);
 	signal state, state_next : state_type := st_start;
 
 	signal area, area_next     : int32_t;
 	signal depths, depths_next : point3d_t;
 	signal colors, colors_next : triangle_colors_t;
+	
+	signal v1, v2, v3 : vertex_attr_t;
+	signal area_v     : int32_t;
+
+	signal color1, color2, color3 : color_t;
 
 	function calc_lighting_for_vertex(vertex : vertex_attr_t) return color_t is
 		variable diffuse_raw : signed(47 downto 0);
@@ -133,11 +139,8 @@ begin
 		end if;
 	end process;
 
-	process(state, current_triangle_index, trianglegen_ready, start_rendering, triangle, start_in, ready_out, area, depths, colors) is
-		variable v1, v2, v3 : vertex_attr_t;
-		variable area_v     : int32_t;
-
-		variable color1, color2, color3 : color_t;
+	process(state, current_triangle_index, trianglegen_ready, start_rendering, triangle, start_in, ready_out, area, depths, colors, area_v, color1, color2, color3, v1, v1.pos.x, v1.pos.y, v1.pos.z, v2, v2.pos.x, v2.pos.y, v2.pos.z, v3, v3.pos.x, v3.pos.y, v3.pos.z) is
+		
 
 	begin
 		state_next                  <= state;
@@ -155,17 +158,40 @@ begin
 				current_triangle_index_next <= 0;
 				start_rendering_next        <= '0';
 				state_next                  <= st_idle;
-
+				
 			when st_render_task =>
-				v1 := rescale_attributes(vertices(to_integer(indices(current_triangle_index).a)));
-				v2 := rescale_attributes(vertices(to_integer(indices(current_triangle_index).b)));
-				v3 := rescale_attributes(vertices(to_integer(indices(current_triangle_index).c)));
+				v1 <= rescale_attributes(vertices(to_integer(indices(current_triangle_index).a)));
+				v2 <= rescale_attributes(vertices(to_integer(indices(current_triangle_index).b)));
+				v3 <= rescale_attributes(vertices(to_integer(indices(current_triangle_index).c)));
+				
+				state_next <= st_4;
+				
+			when st_2 =>
+				
+				state_next <= st_3;
+				
+			when st_3 =>
+				
+				state_next <= st_4;
+				
+			when st_4 =>
+				color1 <= calc_lighting_for_vertex(v1);
+				color2 <= calc_lighting_for_vertex(v2);
+				color3 <= calc_lighting_for_vertex(v3);
+				state_next <= st_0;
+				
+			when st_5 =>
+				
+				state_next <= st_1;
+				
+				
+			when st_1 =>
+				
+				
+				state_next <= st_0;
 
-				color1 := calc_lighting_for_vertex(v1);
-				color2 := calc_lighting_for_vertex(v2);
-				color3 := calc_lighting_for_vertex(v3);
-
-				area_v := (v1.pos.x - v2.pos.x) * (v3.pos.z - v2.pos.z) - (v1.pos.z - v2.pos.z) * (v3.pos.x - v2.pos.x);
+			when st_0 =>
+				area_v <= (v1.pos.x - v2.pos.x) * (v3.pos.z - v2.pos.z) - (v1.pos.z - v2.pos.z) * (v3.pos.x - v2.pos.x);
 
 				--				if area_v > 0 then      -- backface culling - ccw mode
 				triangle_next <= (
