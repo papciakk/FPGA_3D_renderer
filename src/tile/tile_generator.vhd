@@ -30,20 +30,18 @@ architecture bahavioral of tile_generator is
 
 	signal ready_out_next : std_logic;
 
-	signal rand : std_logic_vector(31 downto 0);
-
 	type state_type is (
 		st_start, st_render_task, st_render_task_wait, st_finished, st_idle,
 		st_0, st_1, st_2, st_3, st_4, st_5
 	);
 	signal state, state_next : state_type := st_start;
 
-	signal area, area_next     : int32_t;
+	signal area, area_next     : int16_t;
 	signal depths, depths_next : point3d_t;
 	signal colors, colors_next : triangle_colors_t;
 	
 	signal v1, v2, v3 : vertex_attr_t;
-	signal area_v     : int32_t;
+	signal area_v     : int16_t;
 
 	signal color1, color2, color3 : color_t;
 
@@ -112,14 +110,6 @@ begin
 			depth_buf_in => depth_in,
 			depth_buf_out => depth_out,
 			depth_wren => depth_wren
-		);
-
-	random0 : entity work.random
-		port map(
-			clk  => clk,
-			rst  => rst,
-			rand => rand,
-			seed => (others => '0')
 		);
 
 	process(clk, rst) is
@@ -191,7 +181,7 @@ begin
 				state_next <= st_0;
 
 			when st_0 =>
-				area_v <= (v1.pos.x - v2.pos.x) * (v3.pos.z - v2.pos.z) - (v1.pos.z - v2.pos.z) * (v3.pos.x - v2.pos.x);
+				area_v <= resize((v1.pos.x - v2.pos.x) * (v3.pos.z - v2.pos.z) - (v1.pos.z - v2.pos.z) * (v3.pos.x - v2.pos.x), 16);
 
 				--				if area_v > 0 then      -- backface culling - ccw mode
 				triangle_next <= (

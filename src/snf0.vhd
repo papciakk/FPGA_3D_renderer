@@ -258,7 +258,7 @@ begin
 			frequency => 1.0            -- Hz
 		)
 		port map(
-			clk50 => fb_initializer_clk,
+			clk50 => CLK_50,
 			rst   => not rst,
 			led   => LED(1)
 		);
