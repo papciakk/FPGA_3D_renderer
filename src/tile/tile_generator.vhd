@@ -8,16 +8,16 @@ entity tile_generator is
 	port(
 		clk                   : in  std_logic;
 		rst                   : in  std_logic;
-		trianglegen_posx_out  : out unsigned(15 downto 0);
-		trianglegen_posy_out  : out unsigned(15 downto 0);
+		trianglegen_posx_out  : out uint16_t;
+		trianglegen_posy_out  : out uint16_t;
 		trianglegen_put_pixel : out std_logic;
 		color_out             : out color_t;
 		tile_rect_in          : in  rect_t;
 		start_in              : in  std_logic;
 		ready_out             : out std_logic;
-		depth_in : out unsigned(15 downto 0);
-		depth_out : in unsigned(15 downto 0);
-		depth_wren : out std_logic
+		depth_in              : out uint16_t;
+		depth_out             : in  uint16_t;
+		depth_wren            : out std_logic
 	);
 end entity tile_generator;
 
@@ -39,7 +39,7 @@ architecture bahavioral of tile_generator is
 	signal area, area_next     : int16_t;
 	signal depths, depths_next : point3d_t;
 	signal colors, colors_next : triangle_colors_t;
-	
+
 	signal v1, v2, v3 : vertex_attr_t;
 	signal area_v     : int16_t;
 
@@ -48,8 +48,8 @@ architecture bahavioral of tile_generator is
 	function calc_lighting_for_vertex(vertex : vertex_attr_t) return color_t is
 		variable diffuse_raw : signed(47 downto 0);
 		variable diffuse     : std_logic_vector(7 downto 0);
-		variable diffuse_1 : unsigned(47 downto 0);
-		
+		variable diffuse_1   : unsigned(47 downto 0);
+
 		constant light_dir : point3d_32_t := (
 			z => to_signed(180, 32),
 			y => (others => '0'),
@@ -63,8 +63,8 @@ architecture bahavioral of tile_generator is
 			if diffuse_raw > 255 then
 				diffuse := std_logic_vector(to_unsigned(255, 8));
 			else
-				diffuse_1 := to_unsigned(to_integer(abs(diffuse_raw)), 48);
-				diffuse := std_logic_vector(diffuse_1(7 downto 0));
+				diffuse_1 := to_unsigned(to_integer(abs (diffuse_raw)), 48);
+				diffuse   := std_logic_vector(diffuse_1(7 downto 0));
 			end if;
 		else
 			diffuse := (others => '0');
@@ -107,9 +107,9 @@ begin
 			depths_in     => depths,
 			colors_in     => colors,
 			color_out     => color_out,
-			depth_buf_in => depth_in,
+			depth_buf_in  => depth_in,
 			depth_buf_out => depth_out,
-			depth_wren => depth_wren
+			depth_wren    => depth_wren
 		);
 
 	process(clk, rst) is
@@ -130,8 +130,6 @@ begin
 	end process;
 
 	process(state, current_triangle_index, trianglegen_ready, start_rendering, triangle, start_in, ready_out, area, depths, colors, area_v, color1, color2, color3, v1, v1.pos.x, v1.pos.y, v1.pos.z, v2, v2.pos.x, v2.pos.y, v2.pos.z, v3, v3.pos.x, v3.pos.y, v3.pos.z) is
-		
-
 	begin
 		state_next                  <= state;
 		current_triangle_index_next <= current_triangle_index;
@@ -148,36 +146,34 @@ begin
 				current_triangle_index_next <= 0;
 				start_rendering_next        <= '0';
 				state_next                  <= st_idle;
-				
+
 			when st_render_task =>
 				v1 <= rescale_attributes(vertices(to_integer(indices(current_triangle_index).a)));
 				v2 <= rescale_attributes(vertices(to_integer(indices(current_triangle_index).b)));
 				v3 <= rescale_attributes(vertices(to_integer(indices(current_triangle_index).c)));
-				
+
 				state_next <= st_4;
-				
+
 			when st_2 =>
-				
+
 				state_next <= st_3;
-				
+
 			when st_3 =>
-				
+
 				state_next <= st_4;
-				
+
 			when st_4 =>
-				color1 <= calc_lighting_for_vertex(v1);
-				color2 <= calc_lighting_for_vertex(v2);
-				color3 <= calc_lighting_for_vertex(v3);
+				color1     <= calc_lighting_for_vertex(v1);
+				color2     <= calc_lighting_for_vertex(v2);
+				color3     <= calc_lighting_for_vertex(v3);
 				state_next <= st_0;
-				
+
 			when st_5 =>
-				
+
 				state_next <= st_1;
-				
-				
+
 			when st_1 =>
-				
-				
+
 				state_next <= st_0;
 
 			when st_0 =>
@@ -196,7 +192,7 @@ begin
 				--						color(v1.normal.x, v1.normal.y, v1.normal.z),
 				--						color(v2.normal.x, v2.normal.y, v2.normal.z),
 				--						color(v3.normal.x, v3.normal.y, v3.normal.z)
-										
+
 				--					);
 
 				colors_next <= (
