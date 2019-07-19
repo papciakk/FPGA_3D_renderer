@@ -135,8 +135,8 @@ architecture behavioral of snf0 is
 	signal tilebuf_clear      : std_logic := '0';
 	signal tilebuf_clear_done : std_logic;
 
-	signal depth_in   : uint16_t;
-	signal depth_out  : uint16_t;
+	signal depth_in   : int16_t;
+	signal depth_out  : int16_t;
 	signal depth_wren : std_logic;
 
 	signal clk150     : std_logic;

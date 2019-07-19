@@ -21,8 +21,8 @@ entity tile_buffer is
 		clear             : in  std_logic;
 		clear_done        : out std_logic;
 		---------------------------------------------------
-		depth_in          : in  uint16_t;
-		depth_out         : out uint16_t;
+		depth_in          : in  int16_t;
+		depth_out         : out int16_t;
 		clk50             : in  std_logic;
 		depth_wren        : in  std_logic
 	);
@@ -45,8 +45,8 @@ architecture RTL of tile_buffer is
 	signal wren           : std_logic;
 	signal depth_wren_raw : std_logic;
 	
-	signal depth_in_raw  : STD_LOGIC_VECTOR(15 DOWNTO 0);
-	signal depth_out_raw : STD_LOGIC_VECTOR(15 DOWNTO 0);
+	signal depth_in_raw  : slv16_t;
+	signal depth_out_raw : slv16_t;
 
 	type state_type is (
 		st_start, st_idle, st_clear_wait
@@ -95,8 +95,9 @@ begin
 			q     => depth_out_raw
 		);
 
-	depth_in_raw <= X"0000" when clear_mode = '1' else std_logic_vector(depth_in);
-	depth_out    <= unsigned(depth_out_raw);
+	-- X"0000"
+	depth_in_raw <= INT16_MAX when clear_mode = '1' else std_logic_vector(depth_in);
+	depth_out    <= signed(depth_out_raw);
 
 	ram_addr_rd <= to_integer(screen_posy * TILE_RES_X + screen_posx);
 	color_out   <= (

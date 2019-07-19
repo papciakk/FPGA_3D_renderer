@@ -105,6 +105,9 @@ package common is
 	constant COLOR_GREEN : color_t := (g => X"FF", others => X"00");
 	constant COLOR_BLUE  : color_t := (b => X"FF", others => X"00");
 	
+	constant INT16_MIN : std_logic_vector := X"8000";
+	constant INT16_MAX : std_logic_vector := X"7FFF";
+	
 	-- FUNCTIONS
 
 	function color(r, g, b : signed) return color_t;
@@ -155,6 +158,8 @@ package common is
 	----------------------------------------------------
 	
 	function int32(slv : slv8_t) return int32_t;
+	function slv8(s : signed) return slv8_t;
+	function slv8(i : integer) return slv8_t;
 
 end package common;
 
@@ -320,6 +325,18 @@ package body common is
 	function int32(slv : slv8_t) return int32_t is
 	begin
 		return resize(signed(slv), 32);
+	end function;
+	
+	function slv8(s : signed) return slv8_t is
+		variable slv : std_logic_vector(s'length-1 downto 0);
+	begin
+		slv := std_logic_vector(s);
+		return slv(7 downto 0);
+	end function;
+	
+	function slv8(i : integer) return slv8_t is
+	begin
+		return std_logic_vector(to_unsigned(i, 8));
 	end function;
 	
 

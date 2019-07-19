@@ -15,8 +15,8 @@ entity tile_system is
 		ready_out     : out std_logic;
 		start_in      : in  std_logic;
 		tile_num_in   : in  integer;
-		depth_in      : out uint16_t;
-		depth_out     : in  uint16_t;
+		depth_in      : out int16_t;
+		depth_out     : in  int16_t;
 		depth_wren    : out std_logic
 	);
 end entity tile_system;

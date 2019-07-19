@@ -10,7 +10,8 @@ package rendering_common is
 	function get_triangle_and_tile_intersected_bounding_box(triangle_bb : srect_t; tile_bb : rect_t) return srect_t;
 	function get_current_rendering_bounding_box(triangle : triangle2d_t; tile_rect : rect_t) return srect_t;
 
-	function edge_function(a, b, c : point2d_t) return int32_t;
+	function edge_function(a, b, c : point2d_t) return int16_t;
+	function edge_function(a, b, c : point3d_t) return int16_t;
 
 end package rendering_common;
 
@@ -45,9 +46,18 @@ package body rendering_common is
 		);
 	end function;
 	
-	function edge_function(a, b, c : point2d_t) return int32_t is
+	function edge_function(a, b, c : point2d_t) return int16_t is
 	begin
-		return (c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x);
+		return resize((c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x), 16);
+	end function;
+	
+	function edge_function(a, b, c : point3d_t) return int16_t is
+		variable aa, bb, cc : point2d_t;
+	begin
+		aa := (a.x, a.y);
+		bb := (b.x, b.y);
+		cc := (c.x, c.y);
+		return edge_function(aa, bb, cc);
 	end function;
 	
 end package body;
