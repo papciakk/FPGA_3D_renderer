@@ -2,9 +2,11 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.std_logic_misc.all;
 use ieee.numeric_std.all;
-use work.fb_types.all;
-use work.common.all;
 use work.all;
+use work.fb_types.all;
+use work.stdint.all;
+use work.definitions.all;
+use work.config.all;
 
 entity snf0 is
 	port(
@@ -293,7 +295,7 @@ begin
 
 	process(fb_initializer_clk, rst) is
 	begin
-		if rst = '0' then
+		if not rst then
 			state_init <= st_start;
 		elsif rising_edge(fb_initializer_clk) then
 			case state_init is
@@ -301,7 +303,7 @@ begin
 					fb_initializer_enabled <= '1';
 					enable_drawing         <= '0';
 
-					if pll_locked = '1' then
+					if pll_locked then
 						state_init <= st_fb_init;
 					else
 						state_init <= st_start;
@@ -315,7 +317,7 @@ begin
 
 				when st_fb_init_wait =>
 					fb_init_start <= '0';
-					if fb_init_done = '1' then
+					if fb_init_done then
 						fb_initializer_enabled <= '0';
 						enable_drawing         <= '1';
 						state_init             <= st_idle;
@@ -331,7 +333,7 @@ begin
 
 	process(fb_disp_clk, rst) is
 	begin
-		if rst = '0' then
+		if not rst then
 			state_drawing <= st_start;
 		elsif rising_edge(fb_disp_clk) then
 			case state_drawing is
@@ -352,7 +354,7 @@ begin
 					end if;
 
 				when st_wait =>
-					if enable_drawing = '1' then
+					if enable_drawing then
 						state_drawing <= st_disp_clear;
 					else
 						state_drawing <= st_wait;
@@ -371,7 +373,7 @@ begin
 					fb_disp_start_write <= '0';
 					fb_disp_clear       <= '0';
 
-					if fb_disp_write_done = '1' then
+					if fb_disp_write_done then
 						state_drawing <= st_tilegen_clear;
 					else
 						state_drawing <= st_disp_clear_wait;
@@ -387,7 +389,7 @@ begin
 
 				when st_tilegen_clear_wait =>
 					tilebuf_clear <= '0';
-					if tilebuf_clear_done = '1' then
+					if tilebuf_clear_done then
 						state_drawing <= st_init_tilegen;
 					else
 						state_drawing <= st_tilegen_clear_wait;
@@ -399,7 +401,7 @@ begin
 
 				when st_tilegen_wait =>
 					tilegen_start <= '0';
-					if tilegen_ready = '1' then
+					if tilegen_ready then
 						state_drawing <= st_screen_write;
 					else
 						state_drawing <= st_tilegen_wait;
@@ -415,7 +417,7 @@ begin
 
 				when st_screen_wait =>
 					fb_disp_start_write <= '0';
-					if fb_disp_write_done = '1' then
+					if fb_disp_write_done then
 						state_drawing <= st_next_tile;
 					else
 						state_drawing <= st_screen_wait;
@@ -437,6 +439,7 @@ begin
 					end if;
 
 				when st_end =>
+					null;
 			end case;
 		end if;
 	end process;

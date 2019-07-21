@@ -1,7 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use work.common.all;
+use work.stdint.all;
 
 entity single_measurment is
 	port(
@@ -13,7 +13,7 @@ entity single_measurment is
 	);
 end entity single_measurment;
 
-architecture RTL of single_measurment is
+architecture rtl of single_measurment is
 	type state_type is (st_init, st_idle, st_run, st_done);
 	signal state : state_type := st_init;
 
@@ -21,7 +21,7 @@ architecture RTL of single_measurment is
 begin
 	process(clk, rst) is
 	begin
-		if rst = '1' then
+		if rst then
 			state <= st_init;
 		elsif rising_edge(clk) then
 			case state is
@@ -30,13 +30,13 @@ begin
 					done    <= '0';
 					state   <= st_idle;
 				when st_idle =>
-					if run = '1' then
+					if run then
 						state <= st_run;
 					else
 						state <= st_idle;
 					end if;
 				when st_run =>
-					if run = '1' then
+					if run  then
 						counter <= counter + 1;
 						state   <= st_run;
 					else
@@ -44,10 +44,10 @@ begin
 					end if;
 				when st_done =>
 					done  <= '1';
-					value <= to_unsigned(counter, 32);
+					value <= uint32(counter);
 					state <= st_done;
 			end case;
 		end if;
 	end process;
 
-end architecture RTL;
+end architecture rtl;

@@ -2,9 +2,10 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use ieee.math_real.all;
-use work.common.all;
+use work.stdint.all;
+use work.definitions.all;
 
-package rendering_common is
+package rendering_inc is
 
 	function get_triangle_bounding_box(triangle : triangle2d_t) return srect_t;
 	function get_triangle_and_tile_intersected_bounding_box(triangle_bb : srect_t; tile_bb : rect_t) return srect_t;
@@ -13,10 +14,10 @@ package rendering_common is
 	function edge_function(a, b, c : point2d_t) return int16_t;
 	function edge_function(a, b, c : point3d_t) return int16_t;
 
-end package rendering_common;
+end package rendering_inc;
 
 
-package body rendering_common is
+package body rendering_inc is
 
 	function get_triangle_bounding_box(triangle : triangle2d_t) return srect_t is
 	begin

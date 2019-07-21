@@ -1,9 +1,11 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use work.common.all;
+use work.stdint.all;
+use work.definitions.all;
+use work.config.all;
 use work.renderer_mesh.all;
-use work.rendering_common.all;
+use work.rendering_inc.all;
 
 entity tile_generator is
 	port(
@@ -72,9 +74,9 @@ architecture bahavioral of tile_generator is
 		variable diffuse     : slv8_t;
 
 		constant light_dir : point3d_32_t := (
-			z => to_signed(180, 32),
-			y => (others => '0'),
-			x => to_signed(180, 32)
+			z => int32(180),
+			y => int32(0),
+			x => int32(180)
 		);
 
 		constant ambient_diffuse : integer := 10;
@@ -122,18 +124,6 @@ architecture bahavioral of tile_generator is
 	signal colors, colors_next : triangle_colors_t;
 	signal area, area_next     : int16_t;
 
-	type state_type is (
-		st_start, st_idle,
-		st_prepare_triangle_vertices_request_sincos_x,
-		st_get_sincos_x, st_get_sincos_y_calc_rot_x,
-		st_get_sincos_z_calc_rot_y, st_calc_rotz_cast_to_32bit,
-		st_calc_scale,
-		st_rescale_attributes,
-		st_calc_lighting_for_triangle, st_rendering_misc,
-		st_rendering_task_wait, st_increment_triangle_id
-	);
-	signal state, state_next : state_type := st_start;
-
 	--------------------------------------------
 
 	signal rot   : point3d_t := (x => int16(0), y => int16(0), z => int16(0));
@@ -154,6 +144,20 @@ architecture bahavioral of tile_generator is
 	signal v0_32, v0_32_next : point3d_32_t;
 	signal v1_32, v1_32_next : point3d_32_t;
 	signal v2_32, v2_32_next : point3d_32_t;
+	
+	--------------------------------------------
+	
+	type state_type is (
+		st_start, st_idle,
+		st_prepare_triangle_vertices_request_sincos_x,
+		st_get_sincos_x, st_get_sincos_y_calc_rot_x,
+		st_get_sincos_z_calc_rot_y, st_calc_rotz_cast_to_32bit,
+		st_calc_scale,
+		st_rescale_attributes,
+		st_calc_lighting_for_triangle, st_rendering_misc,
+		st_rendering_task_wait, st_increment_triangle_id
+	);
+	signal state, state_next : state_type := st_start;
 
 begin
 	sin_cos_0 : entity work.sin_cos

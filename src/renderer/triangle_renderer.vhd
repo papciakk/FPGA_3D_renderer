@@ -1,8 +1,9 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use work.common.all;
-use work.rendering_common.all;
+use work.stdint.all;
+use work.definitions.all;
+use work.rendering_inc.all;
 
 entity renderer_triangle is
 	port(
@@ -42,8 +43,8 @@ architecture RTL of renderer_triangle is
 
 	signal depth_out_latch : int16_t;
 
-	signal x, x_next : int16_t := (others => '0');
-	signal y, y_next : int16_t := (others => '0');
+	signal x, x_next : int16_t := int16(0);
+	signal y, y_next : int16_t := int16(0);
 
 	signal put_pixel_out_next : std_logic := '0';
 	signal ready_out_next     : std_logic := '0';
@@ -72,7 +73,7 @@ begin
 
 	process(clk, rst) is
 	begin
-		if rst = '1' then
+		if rst then
 			state <= st_start;
 		elsif rising_edge(clk) then
 			put_pixel_out <= put_pixel_out_next;
@@ -99,8 +100,8 @@ begin
 			when st_start =>
 				depth_wren          <= '0';
 				put_pixel_out_next  <= '0';
-				x_next              <= (others => '0');
-				y_next              <= (others => '0');
+				x_next              <= int16(0);
+				y_next              <= int16(0);
 				ready_out_next      <= '0';
 				triangle_latch_next <= (point2d(0, 0), point2d(0, 0), point2d(0, 0));
 				state_next          <= st_idle;
@@ -109,7 +110,7 @@ begin
 				depth_wren         <= '0';
 				put_pixel_out_next <= '0';
 				ready_out_next     <= '0';
-				if start_in = '1' then
+				if start_in then
 					triangle_latch_next <= triangle_in;
 					render_rect_next    <= get_current_rendering_bounding_box(triangle_in, tile_rect_in);
 					state_next          <= st_start_render;

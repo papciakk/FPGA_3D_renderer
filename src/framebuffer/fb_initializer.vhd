@@ -2,6 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.fb_types.all;
+use work.stdint.all;
 
 entity fb_initializer is
 	port(
@@ -11,14 +12,14 @@ entity fb_initializer is
 		start         : in  std_logic;
 		done          : out std_logic;
 		---------------------------------------
-		fb_data_write : out std_logic_vector(7 downto 0);
+		fb_data_write : out slv8_t;
 		fb_op_start   : out std_logic;
 		fb_op         : out fb_lo_level_op_type;
 		fb_op_done    : in  std_logic
 	);
 end entity fb_initializer;
 
-architecture RTL of fb_initializer is
+architecture rtl of fb_initializer is
 	type fsm_state_type is (
 		st_idle,
 		st_fb_init, st_fb_init_wait,
@@ -28,7 +29,7 @@ architecture RTL of fb_initializer is
 
 	----------------------------------------
 
-	signal cnt : unsigned(31 downto 0) := (others => '0');
+	signal cnt : uint32_t := uint32(0);
 
 	----------------------------------------	
 
@@ -40,7 +41,7 @@ architecture RTL of fb_initializer is
 
 	type operation_data_pair_type is record
 		operation : operation_type;
-		data      : std_logic_vector(7 downto 0);
+		data      : slv8_t;
 	end record;
 
 	type operation_list_type is array (natural range <>) of operation_data_pair_type;
@@ -146,17 +147,17 @@ begin
 
 	process(clk, rst) is
 	begin
-		if rst = '0' then
+		if not rst then
 			done  <= '0';
 			state <= st_idle;
 		elsif rising_edge(clk) then
 			case state is
-
+			
 				when st_idle =>
 					fb_op_start   <= '0';
 					fb_data_write <= (others => '0');
 
-					if start = '1' then
+					if start then
 						state <= st_fb_init;
 						done  <= '0';
 					else
@@ -170,7 +171,7 @@ begin
 
 				when st_fb_init_wait =>
 					fb_op_start <= '0';
-					if fb_op_done = '1' then
+					if fb_op_done then
 						state <= st_fb_do_operation;
 					else
 						state <= st_fb_init_wait;
@@ -197,7 +198,7 @@ begin
 				when st_fb_do_operation_wait =>
 					fb_op_start <= '0';
 
-					if fb_op_done = '1' then
+					if fb_op_done then
 						if cnt < operation_list'length then
 							state <= st_fb_do_operation;
 						else
@@ -212,4 +213,4 @@ begin
 		end if;
 	end process;
 
-end architecture RTL;
+end architecture rtl;

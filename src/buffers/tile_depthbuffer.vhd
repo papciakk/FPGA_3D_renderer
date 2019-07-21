@@ -31,7 +31,7 @@ begin
 	process(clk)
 	begin
 	if(rising_edge(clk)) then 
-		if(we = '1') then
+		if we then
 			ram(waddr) <= data;
 		end if;
  

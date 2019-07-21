@@ -2,7 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use ieee.math_real.all;
-use work.common.all;
+use work.stdint.all;
 
 entity sin_cos is
 	port(
@@ -14,7 +14,7 @@ entity sin_cos is
 	);
 end entity sin_cos;
 
-architecture arch of sin_cos is
+architecture rtl of sin_cos is
 	type sin_lut_t is array (natural range <>) of int16_t;
 
 	function gen_sin_lut return sin_lut_t is
@@ -52,4 +52,4 @@ begin
 	end process;
 	
 
-end architecture arch;
+end architecture rtl;

@@ -2,7 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use ieee.math_real.all;
-use work.common.all;
+use work.config.all;
 
 entity led_blinker is
 	generic(
@@ -18,7 +18,7 @@ end entity led_blinker;
 
 architecture RTL of led_blinker is
 
-	constant COUNTER_MAX_VAL : natural := integer(50000.0 * (1000.0 / real(frequency)));
+	constant COUNTER_MAX_VAL : natural := integer(real(MAIN_CLK_MHZ) * 1000.0 * (1000.0 / real(frequency)));
 	constant COUNTER_BITS    : natural := integer(ceil(log2(real(COUNTER_MAX_VAL))));
 
 	signal counter : unsigned((COUNTER_BITS - 1) downto 0) := (others => '0');

@@ -2,7 +2,8 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.fb_types.all;
-use work.common.all;
+use work.stdint.all;
+use work.definitions.all;
 
 
 entity fb_display is
@@ -13,7 +14,7 @@ entity fb_display is
 		start_write        : in     std_logic;
 		write_done         : buffer std_logic;
 		---------------------------------------
-		fb_data_write      : buffer std_logic_vector(7 downto 0);
+		fb_data_write      : buffer slv8_t;
 		fb_op_start        : buffer std_logic;
 		fb_op              : buffer fb_lo_level_op_type;
 		fb_op_done         : in     std_logic;
@@ -21,18 +22,18 @@ entity fb_display is
 		do_clear           : in     std_logic;
 		clear_color        : in     color_t;
 		---------------------------------------
-		posx_out           : out    unsigned(15 downto 0);
-		posy_out           : out    unsigned(15 downto 0);
+		posx_out           : out    uint16_t;
+		posy_out           : out    uint16_t;
 		color_in           : in     color_t;
 		---------------------------------------
-		fb_color_g         : buffer std_logic_vector(7 downto 0);
-		fb_color_b         : buffer std_logic_vector(7 downto 0);
+		fb_color_g         : buffer slv8_t;
+		fb_color_b         : buffer slv8_t;
 		---------------------------------------
 		fb_window          : in     rect_t
 	);
 end entity fb_display;
 
-architecture RTL of fb_display is
+architecture rtl of fb_display is
 	type state_type is (
 		st_start, st_write_pixel_data, st_write_pixel_data_wait, st_idle,
 		st_init_window_0, st_init_window_0_wait, st_init_window_1, st_init_window_1_wait,
@@ -44,18 +45,18 @@ architecture RTL of fb_display is
 	);
 	signal state, state_next : state_type := st_start;
 
-	signal cnt, cnt_next   : unsigned(32 downto 0);
-	signal cntx, cntx_next : unsigned(15 downto 0);
-	signal cnty, cnty_next : unsigned(15 downto 0);
+	signal cnt, cnt_next   : uint32_t;
+	signal cntx, cntx_next : uint16_t;
+	signal cnty, cnty_next : uint16_t;
 
 	signal clearing, clearing_next : std_logic;
 
 	signal write_done_next    : std_logic;
-	signal fb_data_write_next : std_logic_vector(7 downto 0);
+	signal fb_data_write_next : slv8_t;
 	signal fb_op_start_next   : std_logic;
 	signal fb_op_next         : fb_lo_level_op_type;
-	signal fb_color_g_next    : std_logic_vector(7 downto 0);
-	signal fb_color_b_next    : std_logic_vector(7 downto 0);
+	signal fb_color_g_next    : slv8_t;
+	signal fb_color_b_next    : slv8_t;
 	
 	signal fb_window_x0 : std_logic_vector(15 downto 0);
 	signal fb_window_y0 : std_logic_vector(15 downto 0);
@@ -124,7 +125,7 @@ begin
 				state_next         <= st_idle;
 
 			when st_idle =>
-				if start_write = '1' then
+				if start_write then
 					write_done_next <= '0';
 					cntx_next       <= (others => '0');
 					cnty_next       <= (others => '0');
@@ -142,7 +143,7 @@ begin
 
 			when st_init_window_0_wait =>
 				fb_op_start_next <= '0';
-				if fb_op_done = '1' then
+				if fb_op_done then
 					state_next <= st_init_window_1;
 				end if;
 
@@ -154,7 +155,7 @@ begin
 
 			when st_init_window_1_wait =>
 				fb_op_start_next <= '0';
-				if fb_op_done = '1' then
+				if fb_op_done then
 					state_next <= st_init_window_2;
 				end if;
 
@@ -166,7 +167,7 @@ begin
 
 			when st_init_window_2_wait =>
 				fb_op_start_next <= '0';
-				if fb_op_done = '1' then
+				if fb_op_done then
 					state_next <= st_init_window_3;
 				end if;
 
@@ -178,7 +179,7 @@ begin
 
 			when st_init_window_3_wait =>
 				fb_op_start_next <= '0';
-				if fb_op_done = '1' then
+				if fb_op_done then
 					state_next <= st_init_window_4;
 				end if;
 
@@ -190,7 +191,7 @@ begin
 
 			when st_init_window_4_wait =>
 				fb_op_start_next <= '0';
-				if fb_op_done = '1' then
+				if fb_op_done then
 					state_next <= st_init_window_5;
 				end if;
 
@@ -202,7 +203,7 @@ begin
 
 			when st_init_window_5_wait =>
 				fb_op_start_next <= '0';
-				if fb_op_done = '1' then
+				if fb_op_done then
 					state_next <= st_init_window_6;
 				end if;
 
@@ -214,7 +215,7 @@ begin
 
 			when st_init_window_6_wait =>
 				fb_op_start_next <= '0';
-				if fb_op_done = '1' then
+				if fb_op_done then
 					state_next <= st_init_window_7;
 				end if;
 
@@ -226,7 +227,7 @@ begin
 
 			when st_init_window_7_wait =>
 				fb_op_start_next <= '0';
-				if fb_op_done = '1' then
+				if fb_op_done then
 					state_next <= st_init_window_8;
 				end if;
 
@@ -238,7 +239,7 @@ begin
 
 			when st_init_window_8_wait =>
 				fb_op_start_next <= '0';
-				if fb_op_done = '1' then
+				if fb_op_done then
 					state_next <= st_init_window_9;
 				end if;
 
@@ -250,7 +251,7 @@ begin
 
 			when st_init_window_9_wait =>
 				fb_op_start_next <= '0';
-				if fb_op_done = '1' then
+				if fb_op_done then
 					state_next <= st_init_window_10;
 				end if;
 
@@ -262,14 +263,14 @@ begin
 
 			when st_init_window_10_wait =>
 				fb_op_start_next <= '0';
-				if fb_op_done = '1' then
+				if fb_op_done then
 					state_next <= st_write_pixel_data;
 				end if;
 
 			when st_write_pixel_data =>
 				if cnty < (fb_window.y1 - fb_window.y0 + 1) then
 					if cntx < (fb_window.x1 - fb_window.x0 + 1) then
-						if clearing = '1' then
+						if clearing then
 							fb_data_write_next <= clear_color.r;
 							fb_color_g_next    <= clear_color.g;
 							fb_color_b_next    <= clear_color.b;
@@ -295,7 +296,7 @@ begin
 
 			when st_write_pixel_data_wait =>
 				fb_op_start_next <= '0';
-				if fb_op_done = '1' then
+				if fb_op_done then
 					state_next <= st_write_pixel_data;
 				else
 					state_next <= st_write_pixel_data_wait;
@@ -304,4 +305,4 @@ begin
 		end case;
 	end process;
 
-end architecture RTL;
+end architecture rtl;

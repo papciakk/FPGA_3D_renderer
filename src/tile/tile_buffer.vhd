@@ -2,7 +2,9 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use ieee.math_real.all;
-use work.common.all;
+use work.stdint.all;
+use work.definitions.all;
+use work.config.all;
 
 entity tile_buffer is
 	port(
@@ -29,9 +31,9 @@ entity tile_buffer is
 end entity tile_buffer;
 
 architecture RTL of tile_buffer is
-	
+
 	constant TILE_SIZE : integer := (TILE_RES_X) * (TILE_RES_Y + 1);
-	
+
 	signal color_out_raw : std_logic_vector((BITS_PER_PIXEL - 1) DOWNTO 0);
 	signal color_in_raw  : std_logic_vector((BITS_PER_PIXEL - 1) DOWNTO 0);
 
@@ -44,7 +46,7 @@ architecture RTL of tile_buffer is
 
 	signal wren           : std_logic;
 	signal depth_wren_raw : std_logic;
-	
+
 	signal depth_in_raw  : slv16_t;
 	signal depth_out_raw : slv16_t;
 
@@ -55,14 +57,14 @@ architecture RTL of tile_buffer is
 
 begin
 
-	color_in_raw(7 downto 0)   <= X"00" when clear_mode = '1' else color_in.b;
-	color_in_raw(15 downto 8)  <= X"00" when clear_mode = '1' else color_in.g;
-	color_in_raw(23 downto 16) <= X"00" when clear_mode = '1' else color_in.r;
+	color_in_raw(7 downto 0)   <= X"00" when clear_mode else color_in.b;
+	color_in_raw(15 downto 8)  <= X"00" when clear_mode else color_in.g;
+	color_in_raw(23 downto 16) <= X"00" when clear_mode else color_in.r;
 
-	ram_addr_wr <= clear_addr_wr when clear_mode = '1' else to_integer(tilegen_posy * TILE_RES_X + tilegen_posx);
+	ram_addr_wr <= clear_addr_wr when clear_mode else to_integer(tilegen_posy * TILE_RES_X + tilegen_posx);
 
-	wren           <= '1' when clear_mode = '1' else tilegen_put_pixel;
-	depth_wren_raw <= '1' when clear_mode = '1' else depth_wren;
+	wren           <= '1' when clear_mode else tilegen_put_pixel;
+	depth_wren_raw <= '1' when clear_mode else depth_wren;
 
 	tile_framebuffer_0 : entity work.tile_framebuffer
 		generic map(
@@ -95,8 +97,7 @@ begin
 			q     => depth_out_raw
 		);
 
-	-- X"0000"
-	depth_in_raw <= INT16_MAX when clear_mode = '1' else std_logic_vector(depth_in);
+	depth_in_raw <= INT16_MAX when clear_mode else std_logic_vector(depth_in);
 	depth_out    <= signed(depth_out_raw);
 
 	ram_addr_rd <= to_integer(screen_posy * TILE_RES_X + screen_posx);
@@ -110,7 +111,7 @@ begin
 
 	process(tilegen_clk, rst) is
 	begin
-		if rst = '1' then
+		if rst then
 			state <= st_start;
 		elsif rising_edge(tilegen_clk) then
 			state         <= state_next;
@@ -136,7 +137,7 @@ begin
 
 			when st_idle =>
 				clear_done_next <= '0';
-				if clear = '1' then
+				if clear then
 					clear_mode_next    <= '1';
 					clear_addr_wr_next <= 0;
 					state_next         <= st_clear_wait;
