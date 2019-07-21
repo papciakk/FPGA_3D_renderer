@@ -12,7 +12,7 @@ entity snf0 is
 		--		CLK_50_2       : in    std_logic;
 		--		PS2_CLK        : inout std_logic;
 		--		PS2_DATA       : inout std_logic;
-		UART_RXD     : in    std_logic;
+		--		UART_RXD     : in    std_logic;
 		UART_TXD     : out   std_logic;
 		--		SRAM_CLK       : out   std_logic;
 		--		SRAM_ADDR      : out   std_logic_vector(18 downto 0);
@@ -424,7 +424,7 @@ begin
 				-- TILE GENERATION MANAGEMENT
 
 				when st_next_tile =>
-					if tilegen_tile_num_in <= 20 - 2 then
+					if tilegen_tile_num_in <= TILES_CNT - 2 then
 						tilegen_tile_num_in <= tilegen_tile_num_in + 1;
 						state_drawing       <= st_tilegen_clear;
 					else
