@@ -2,8 +2,9 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.fb_types.all;
-use work.stdint.all;
-use work.definitions.all;
+library common;
+use common.stdint.all;
+use common.definitions.all;
 
 
 entity fb_display is

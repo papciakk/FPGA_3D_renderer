@@ -1,6 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
-use work.stdint.all;
+library common;
+use common.stdint.all;
 
 entity uart_receiver_buffer is
 	port(

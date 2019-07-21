@@ -3,10 +3,17 @@ use ieee.std_logic_1164.all;
 use ieee.std_logic_misc.all;
 use ieee.numeric_std.all;
 use work.all;
-use work.fb_types.all;
-use work.stdint.all;
-use work.definitions.all;
-use work.config.all;
+library framebuffer;
+use framebuffer.fb_types.all;
+library common;
+use common.stdint.all;
+use common.definitions.all;
+use common.config.all;
+library generated;
+library buffers;
+library tile;
+library misc;
+library debug;
 
 entity snf0 is
 	port(
@@ -155,7 +162,7 @@ architecture behavioral of snf0 is
 
 begin
 
-	pll0 : entity work.pll
+	pll0 : entity generated.pll
 		port map(
 			areset => not rst,
 			inclk0 => CLK_50,
@@ -165,7 +172,7 @@ begin
 			locked => pll_locked
 		);
 
-	fb_lo_level_driver0 : entity work.fb_lo_level_driver
+	fb_lo_level_driver0 : entity framebuffer.fb_lo_level_driver
 		port map(
 			clk          => fb_clk,
 			rst          => not rst,
@@ -182,7 +189,7 @@ begin
 			VGA1_R       => VGA1_R
 		);
 
-	fb_initializer0 : entity work.fb_initializer
+	fb_initializer0 : entity framebuffer.fb_initializer
 		port map(
 			clk           => fb_initializer_clk,
 			rst           => rst,
@@ -194,7 +201,7 @@ begin
 			fb_op_done    => fb_op_done
 		);
 
-	fb_display0 : entity work.fb_display
+	fb_display0 : entity framebuffer.fb_display
 		port map(
 			posx_out      => screen_posx,
 			posy_out      => screen_posy,
@@ -215,7 +222,7 @@ begin
 			fb_color_b    => VGA1_B
 		);
 
-	tile_buffer0 : entity work.tile_buffer
+	tile_buffer0 : entity buffers.tile_buffer
 		port map(
 			screen_clk        => fb_disp_clk,
 			screen_posx       => screen_posx,
@@ -238,7 +245,7 @@ begin
 			depth_wren        => depth_wren
 		);
 
-	tile_system0 : entity work.tile_system
+	tile_system0 : entity tile.tile_system
 		port map(
 			clk           => fb_disp_clk,
 			rst           => not rst,
@@ -255,7 +262,7 @@ begin
 			depth_wren    => depth_wren
 		);
 
-	led_blinker0 : entity work.led_blinker
+	led_blinker0 : entity misc.led_blinker
 		generic map(
 			frequency => 1.0            -- Hz
 		)
@@ -265,7 +272,7 @@ begin
 			led   => LED(1)
 		);
 
-	measurment0 : entity work.single_measurment
+	measurment0 : entity debug.single_measurment
 		port map(
 			clk   => CLK_50,
 			rst   => not rst,
@@ -274,7 +281,7 @@ begin
 			done  => measurment0_done
 		);
 
-	pritf0 : entity work.printf
+	pritf0 : entity debug.printf
 		port map(
 			send => 	measurment_send,
 			clk      => CLK_50,

@@ -1,11 +1,15 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use work.stdint.all;
-use work.definitions.all;
-use work.config.all;
-use work.renderer_mesh.all;
-use work.rendering_inc.all;
+library common;
+use common.stdint.all;
+use common.definitions.all;
+use common.config.all;
+library rendering;
+use rendering.renderer_mesh.all;
+use rendering.rendering_inc.all;
+library misc;
+use misc.sin_cos;
 
 entity tile_generator is
 	port(
@@ -160,7 +164,7 @@ architecture bahavioral of tile_generator is
 	signal state, state_next : state_type := st_start;
 
 begin
-	sin_cos_0 : entity work.sin_cos
+	sin_cos_0 : entity misc.sin_cos
 		port map(
 			clk     => clk,
 			rst     => rst,
@@ -169,7 +173,7 @@ begin
 			cos_out => cos
 		);
 
-	triangle_renderer0 : entity work.renderer_triangle
+	triangle_renderer0 : entity rendering.renderer_triangle
 		port map(
 			clk           => clk,
 			rst           => rst,

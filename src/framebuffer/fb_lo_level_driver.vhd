@@ -2,7 +2,8 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.fb_types.all;
-use work.stdint.all;
+library common;
+use common.stdint.all;
 
 entity fb_lo_level_driver is
 	port(

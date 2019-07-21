@@ -1,8 +1,11 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use work.stdint.all;
-use work.config.all;
+library common;
+use common.stdint.all;
+use common.config.all;
+library uart;
+use uart.all;
 
 entity printf is
 	port(
@@ -59,7 +62,7 @@ architecture rtl of printf is
 	signal state, state_next : state_type := st_start;
 begin
 
-	uart_baudrate_generator0 : entity work.uart_baudrate_generator
+	uart_baudrate_generator0 : entity uart.uart_baudrate_generator
 		generic map(
 			BAUDRATE     => 115200,
 			MAIN_CLK_MHZ => MAIN_CLK_MHZ
@@ -70,7 +73,7 @@ begin
 			tick => uart_baudrate_tick
 		);
 
-	uart_transmitter0 : entity work.uart_transmitter
+	uart_transmitter0 : entity uart.uart_transmitter
 		generic map(
 			DATA_BITS => 8,
 			STOP_BITS => 1.0

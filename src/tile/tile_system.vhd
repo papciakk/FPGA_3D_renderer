@@ -1,9 +1,10 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use work.stdint.all;
-use work.definitions.all;
-use work.config.all;
+library common;
+use common.stdint.all;
+use common.definitions.all;
+use common.config.all;
 
 entity tile_system is
 	port(

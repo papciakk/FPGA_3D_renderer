@@ -1,4 +1,5 @@
-use work.definitions.all;
+library common;
+use common.definitions.all;
 
 package renderer_mesh is
 	constant vertices : vertex_attr_arr_t(0 to 25) := (
