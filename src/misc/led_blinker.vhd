@@ -2,8 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use ieee.math_real.all;
-library common;
-use common.config.all;
+use work.config.all;
 
 entity led_blinker is
 	generic(

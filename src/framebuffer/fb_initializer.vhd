@@ -2,8 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.fb_types.all;
-library common;
-use common.stdint.all;
+use work.stdint.all;
 
 entity fb_initializer is
 	port(
