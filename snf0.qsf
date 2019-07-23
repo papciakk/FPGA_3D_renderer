@@ -233,6 +233,10 @@ set_global_assignment -name ROUTER_TIMING_OPTIMIZATION_LEVEL MAXIMUM
 set_global_assignment -name PHYSICAL_SYNTHESIS_REGISTER_DUPLICATION ON
 set_global_assignment -name PHYSICAL_SYNTHESIS_COMBO_LOGIC ON
 set_global_assignment -name ENABLE_BENEFICIAL_SKEW_OPTIMIZATION OFF
+set_global_assignment -name VHDL_FILE src/input/keyboard_inc.vhd
+set_global_assignment -name VHDL_FILE src/input/ps2_keyboard.vhd
+set_global_assignment -name VHDL_FILE src/input/keyboard_inputs.vhd
+set_global_assignment -name VHDL_FILE src/input/input_handler.vhd
 set_global_assignment -name VHDL_FILE src/common/config.vhd
 set_global_assignment -name VHDL_FILE src/common/stdint.vhd
 set_global_assignment -name VHDL_FILE src/common/definitions.vhd

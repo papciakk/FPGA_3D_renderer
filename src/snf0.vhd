@@ -7,13 +7,14 @@ use work.fb_types.all;
 use work.stdint.all;
 use work.definitions.all;
 use work.config.all;
+use work.keyboard_inc.all;
 
 entity snf0 is
 	port(
 		CLK_50       : in    std_logic;
 		--		CLK_50_2       : in    std_logic;
-		--		PS2_CLK        : inout std_logic;
-		--		PS2_DATA       : inout std_logic;
+		PS2_CLK      : inout std_logic;
+		PS2_DATA     : inout std_logic;
 		--		UART_RXD     : in    std_logic;
 		UART_TXD     : out   std_logic;
 		--		SRAM_CLK       : out   std_logic;
@@ -53,9 +54,9 @@ entity snf0 is
 end snf0;
 
 architecture behavioral of snf0 is
-	
+
 	constant DELAY_IN_TICKS : integer := 2500000;
-	
+
 	type fsm_state_type is (
 		st_idle,
 		st_start,
@@ -141,7 +142,6 @@ architecture behavioral of snf0 is
 	signal depth_out  : int16_t;
 	signal depth_wren : std_logic;
 
-	signal clk150     : std_logic;
 	signal pll_locked : std_logic;
 
 	signal enable_drawing : std_logic := '0';
@@ -149,9 +149,16 @@ architecture behavioral of snf0 is
 	signal measurment0_run   : std_logic := '0';
 	signal measurment0_value : uint32_t;
 	signal measurment0_done  : std_logic;
-	signal delay_counter : integer;
-	signal measurment_send : std_logic := '0';
-	signal printf0_val : integer;
+	signal delay_counter     : integer;
+	signal measurment_send   : std_logic := '0';
+	signal printf0_val       : integer;
+
+	-----------------------------------------
+
+	signal input_clk : std_logic := '0';
+	signal key       : key_t;
+	signal rot       : point3d_t;
+	signal scale     : int16_t;
 
 begin
 
@@ -161,7 +168,7 @@ begin
 			inclk0 => CLK_50,
 			c0     => fb_initializer_clk,
 			c1     => fb_disp_clk,
-			c2     => clk150,
+			--			c2     => ,
 			locked => pll_locked
 		);
 
@@ -234,7 +241,7 @@ begin
 			----------
 			depth_in          => depth_in,
 			depth_out         => depth_out,
-			clk50             => clk150,
+			clk50             => fb_disp_clk,
 			depth_wren        => depth_wren
 		);
 
@@ -252,7 +259,9 @@ begin
 			tile_num_in   => tilegen_tile_num_in,
 			depth_in      => depth_in,
 			depth_out     => depth_out,
-			depth_wren    => depth_wren
+			depth_wren    => depth_wren,
+			rot           => rot,
+			scale         => scale
 		);
 
 	led_blinker0 : entity work.led_blinker
@@ -276,11 +285,33 @@ begin
 
 	pritf0 : entity work.printf
 		port map(
-			send => 	measurment_send,
+			send     => measurment_send,
 			clk      => CLK_50,
 			rst      => not rst,
 			uart_txd => UART_TXD,
 			val      => printf0_val
+		);
+
+	keyboard_inputs_0 : entity work.keyboard_inputs
+		port map(
+			clk      => CLK_50,
+			rst      => not rst,
+			ps2_clk  => PS2_CLK,
+			ps2_data => PS2_DATA,
+			key      => key
+		);
+
+	input_handler_0 : entity work.input_handler
+		generic map(
+			rot_init   => point3d(0, 0, 0),
+			scale_init => int16(1)
+		)
+		port map(
+			input_clk => input_clk,
+			rst       => not rst,
+			key       => key,
+			rot       => rot,
+			scale     => scale
 		);
 
 	LED(0) <= rst;
@@ -344,7 +375,7 @@ begin
 					tilegen_tile_num_in <= 0;
 					state_drawing       <= st_wait;
 					measurment0_run     <= '0';
-					delay_counter <= 0;
+					delay_counter       <= 0;
 
 				when st_delay =>
 					if delay_counter < DELAY_IN_TICKS then
@@ -381,7 +412,8 @@ begin
 
 				-- GENERATE TILE
 
-			when st_tilegen_clear =>
+				when st_tilegen_clear =>
+					input_clk       <= '1';
 					measurment_send <= '0';
 					measurment0_run <= '1';
 					tilebuf_clear   <= '1';
@@ -410,6 +442,7 @@ begin
 				-- DISPLAY IMAGE
 
 				when st_screen_write =>
+					input_clk           <= '0';
 					fb_disp_clear       <= '0';
 					fb_disp_start_write <= '1';
 					state_drawing       <= st_screen_wait;
@@ -432,10 +465,10 @@ begin
 					else
 						tilegen_tile_num_in <= 0;
 						measurment0_run     <= '0';
-						measurment_send <= '1';
-						printf0_val <= to_integer(measurment0_value);
-						
-						state_drawing       <= st_tilegen_clear;
+						measurment_send     <= '1';
+						printf0_val         <= to_integer(measurment0_value);
+
+						state_drawing <= st_tilegen_clear;
 					end if;
 
 				when st_end =>

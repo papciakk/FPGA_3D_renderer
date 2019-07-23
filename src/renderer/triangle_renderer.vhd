@@ -9,7 +9,7 @@ entity renderer_triangle is
 	port(
 		clk           : in  std_logic;
 		rst           : in  std_logic;
-		tile_rect_in  : in  rect_t;
+		render_rect   : in  srect_t;
 		triangle_in   : in  triangle2d_t;
 		put_pixel_out : out std_logic;
 		posx_out      : out uint16_t;
@@ -38,8 +38,6 @@ architecture RTL of renderer_triangle is
 		p := e0 * signed('0' & c0) + e1 * signed('0' & c1) + e2 * signed('0' & c2);
 		return slv8(p / area);
 	end function;
-
-	signal render_rect, render_rect_next : srect_t;
 
 	signal depth_out_latch : int16_t;
 
@@ -80,7 +78,6 @@ begin
 			x             <= x_next;
 			y             <= y_next;
 			ready_out     <= ready_out_next;
-			render_rect   <= render_rect_next;
 			state         <= state_next;
 			triangle      <= triangle_latch_next;
 		end if;
@@ -93,7 +90,6 @@ begin
 		x_next              <= x;
 		y_next              <= y;
 		ready_out_next      <= ready_out;
-		render_rect_next    <= render_rect;
 		triangle_latch_next <= triangle;
 
 		case state is
@@ -112,7 +108,6 @@ begin
 				ready_out_next     <= '0';
 				if start_in then
 					triangle_latch_next <= triangle_in;
-					render_rect_next    <= get_current_rendering_bounding_box(triangle_in, tile_rect_in);
 					state_next          <= st_start_render;
 				else
 					state_next <= st_idle;

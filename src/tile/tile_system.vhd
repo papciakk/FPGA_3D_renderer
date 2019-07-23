@@ -19,12 +19,14 @@ entity tile_system is
 		tile_num_in   : in  integer;
 		depth_in      : out int16_t;
 		depth_out     : in  int16_t;
-		depth_wren    : out std_logic
+		depth_wren    : out std_logic;
+		rot           : in  point3d_t;
+		scale         : in  int16_t
 	);
 end entity tile_system;
 
 architecture rtl of tile_system is
-	
+
 	function get_tile_rect(x, y : integer) return rect_t is
 	begin
 		return (
@@ -34,7 +36,7 @@ architecture rtl of tile_system is
 			y1 => to_unsigned((y + 1) * TILE_RES_Y, 16)
 		);
 	end function;
-	
+
 	type rect_arr_t is array (natural range <>) of rect_t;
 
 	function prepare_tile_rects return rect_arr_t is
@@ -79,7 +81,9 @@ begin
 			ready_out             => tile_rendered,
 			depth_in              => depth_in,
 			depth_out             => depth_out,
-			depth_wren            => depth_wren
+			depth_wren            => depth_wren,
+			rot                   => rot,
+			scale                 => scale
 		);
 
 	posx_out <= untransposed_posx - current_tile_rect.x0;

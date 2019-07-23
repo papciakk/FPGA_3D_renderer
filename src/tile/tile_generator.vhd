@@ -6,7 +6,6 @@ use work.definitions.all;
 use work.config.all;
 use work.renderer_mesh.all;
 use work.rendering_inc.all;
-use work.sin_cos;
 
 entity tile_generator is
 	port(
@@ -21,7 +20,9 @@ entity tile_generator is
 		ready_out             : out std_logic;
 		depth_in              : out int16_t;
 		depth_out             : in  int16_t;
-		depth_wren            : out std_logic
+		depth_wren            : out std_logic;
+		rot                   : in  point3d_t;
+		scale                 : in  int16_t
 	);
 end entity tile_generator;
 
@@ -80,7 +81,7 @@ architecture bahavioral of tile_generator is
 			z => int32(-512)
 		);
 
-		constant ambient_diffuse : integer := 10;
+		constant ambient_diffuse : integer := 20;
 	begin
 
 		diffuse_raw := resize(
@@ -113,6 +114,8 @@ architecture bahavioral of tile_generator is
 	signal triangle, triangle_next       : triangle2d_t;
 	signal triangle_id, triangle_id_next : integer := 0;
 
+	signal render_rect, render_rect_next : srect_t;
+
 	signal start_rendering, start_rendering_next : std_logic := '0';
 	signal trianglegen_ready                     : std_logic;
 	signal ready_out_next                        : std_logic;
@@ -126,9 +129,6 @@ architecture bahavioral of tile_generator is
 	signal area, area_next     : int16_t;
 
 	--------------------------------------------
-
-	signal rot   : point3d_t := (x => int16(0), y => int16(0), z => int16(0));
-	signal scale : int16_t   := int16(1);
 
 	signal sin : int16_t;
 	signal cos : int16_t;
@@ -145,9 +145,9 @@ architecture bahavioral of tile_generator is
 	signal v0_32, v0_32_next : point3d_32_t;
 	signal v1_32, v1_32_next : point3d_32_t;
 	signal v2_32, v2_32_next : point3d_32_t;
-	
+
 	--------------------------------------------
-	
+
 	type state_type is (
 		st_start, st_idle,
 		st_prepare_triangle_vertices_request_sincos_x,
@@ -174,7 +174,7 @@ begin
 		port map(
 			clk           => clk,
 			rst           => rst,
-			tile_rect_in  => tile_rect_in,
+			render_rect   => render_rect,
 			triangle_in   => triangle,
 			put_pixel_out => trianglegen_put_pixel,
 			posx_out      => trianglegen_posx_out,
@@ -197,6 +197,7 @@ begin
 		elsif rising_edge(clk) then
 			state           <= state_next;
 			triangle_id     <= triangle_id_next;
+			render_rect     <= render_rect_next;
 			start_rendering <= start_rendering_next;
 			triangle        <= triangle_next;
 			ready_out       <= ready_out_next;
@@ -222,9 +223,12 @@ begin
 	end process;
 
 	process(all) is
+		variable area_v : int16_t;
+		variable triangle_v : triangle2d_t;
 	begin
 		state_next           <= state;
 		triangle_id_next     <= triangle_id;
+		render_rect_next     <= render_rect;
 		start_rendering_next <= start_rendering;
 		triangle_next        <= triangle;
 		ready_out_next       <= ready_out;
@@ -320,24 +324,36 @@ begin
 				state_next <= st_calc_lighting_for_triangle;
 
 			when st_calc_lighting_for_triangle =>
-				colors_next <= (
-					calc_lighting_for_vertex(attr0),
-					calc_lighting_for_vertex(attr1),
-					calc_lighting_for_vertex(attr2)
-				);
-				state_next  <= st_rendering_misc;
-
-			when st_rendering_misc =>
+				
 				-- project to screen space
-				triangle_next <= (
+				triangle_v := (
 					(x => attr0.pos.x, y => attr0.pos.y),
 					(x => attr1.pos.x, y => attr1.pos.y),
 					(x => attr2.pos.x, y => attr2.pos.y)
 				);
-				depths_next   <= point3d(attr0.pos.y, attr1.pos.y, attr2.pos.y);
+				triangle_next <= triangle_v;
+				
+				-- calculate rendering bounding box
+				
+				render_rect_next <= get_current_rendering_bounding_box(triangle_v, tile_rect_in);
 
 				-- calc area
-				area_next <= edge_function(attr0.pos, attr1.pos, attr2.pos);
+				area_v    := edge_function(attr0.pos, attr1.pos, attr2.pos);
+				area_next <= area_v;
+
+				if area_v < 0 then      -- backface culling
+					state_next <= st_increment_triangle_id;
+				else
+					colors_next <= (
+						calc_lighting_for_vertex(attr0),
+						calc_lighting_for_vertex(attr1),
+						calc_lighting_for_vertex(attr2)
+					);
+					state_next  <= st_rendering_misc;
+				end if;
+
+			when st_rendering_misc =>
+				depths_next   <= point3d(attr0.pos.y, attr1.pos.y, attr2.pos.y);
 
 				ready_out_next       <= '0';
 				start_rendering_next <= '1';
