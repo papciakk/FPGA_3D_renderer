@@ -176,7 +176,7 @@ set_location_assignment PIN_76 -to VGA2_R
 set_location_assignment PIN_63 -to VGA2_VSync
 set_global_assignment -name TIMEQUEST_MULTICORNER_ANALYSIS ON
 set_global_assignment -name SMART_RECOMPILE ON
-set_global_assignment -name USE_CONFIGURATION_DEVICE ON
+set_global_assignment -name USE_CONFIGURATION_DEVICE OFF
 set_global_assignment -name CYCLONEIII_CONFIGURATION_DEVICE EPCS128
 set_global_assignment -name CRC_ERROR_OPEN_DRAIN OFF
 set_global_assignment -name FORCE_CONFIGURATION_VCCIO ON
@@ -188,7 +188,7 @@ set_global_assignment -name OUTPUT_IO_TIMING_FAR_END_VMEAS "HALF SIGNAL SWING" -
 set_global_assignment -name OPTIMIZE_HOLD_TIMING "ALL PATHS"
 set_global_assignment -name OPTIMIZE_MULTI_CORNER_TIMING ON
 set_global_assignment -name FITTER_EFFORT "FAST FIT"
-set_global_assignment -name SEED 44444
+set_global_assignment -name SEED 4
 set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
 set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
 set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
@@ -223,7 +223,29 @@ set_global_assignment -name NUM_PARALLEL_PROCESSORS ALL
 set_global_assignment -name ENABLE_CONFIGURATION_PINS OFF
 set_global_assignment -name ENABLE_NCE_PIN OFF
 set_global_assignment -name ENABLE_BOOT_SEL_PIN OFF
-set_global_assignment -name VHDL_FILE src/vendor/txt_util.vhdl
+set_global_assignment -name PHYSICAL_SYNTHESIS_ASYNCHRONOUS_SIGNAL_PIPELINING OFF
+set_global_assignment -name TIMEQUEST_DO_REPORT_TIMING ON
+set_global_assignment -name TIMEQUEST_DO_CCPP_REMOVAL ON
+set_global_assignment -name ROUTER_LCELL_INSERTION_AND_LOGIC_DUPLICATION ON
+set_global_assignment -name PLACEMENT_EFFORT_MULTIPLIER 3.0
+set_global_assignment -name PHYSICAL_SYNTHESIS_REGISTER_RETIMING ON
+set_global_assignment -name ROUTER_TIMING_OPTIMIZATION_LEVEL MAXIMUM
+set_global_assignment -name PHYSICAL_SYNTHESIS_REGISTER_DUPLICATION ON
+set_global_assignment -name PHYSICAL_SYNTHESIS_COMBO_LOGIC ON
+set_global_assignment -name ENABLE_BENEFICIAL_SKEW_OPTIMIZATION OFF
+set_global_assignment -name VHDL_FILE src/input/keyboard_inc.vhd
+set_global_assignment -name VHDL_FILE src/input/ps2_keyboard.vhd
+set_global_assignment -name VHDL_FILE src/input/keyboard_inputs.vhd
+set_global_assignment -name VHDL_FILE src/input/input_handler.vhd
+set_global_assignment -name VHDL_FILE src/common/config.vhd
+set_global_assignment -name VHDL_FILE src/common/stdint.vhd
+set_global_assignment -name VHDL_FILE src/common/definitions.vhd
+set_global_assignment -name VHDL_FILE src/misc/led_blinker.vhd
+set_global_assignment -name VHDL_FILE src/renderer/rendering_inc.vhd
+set_global_assignment -name VHDL_FILE src/misc/sin_cos.vhd
+set_global_assignment -name VHDL_FILE src/tile/tile_system.vhd
+set_global_assignment -name VHDL_FILE src/buffers/tile_framebuffer.vhd
+set_global_assignment -name SDC_FILE snf0.sdc
 set_global_assignment -name VHDL_FILE src/debug/pritf.vhd
 set_global_assignment -name VHDL_FILE src/uart/uart_transmitter.vhd
 set_global_assignment -name VHDL_FILE src/uart/uart_receiver.vhd
@@ -231,30 +253,15 @@ set_global_assignment -name VHDL_FILE "src/uart/uart_receiver buffer.vhd"
 set_global_assignment -name VHDL_FILE src/uart/uart_baudrate_generator.vhd
 set_global_assignment -name VHDL_FILE src/debug/single_measurment.vhd
 set_global_assignment -name VHDL_FILE src/tile/tile_buffer.vhd
-set_global_assignment -name VHDL_FILE src/generated/tile_depth_ram.vhd
-set_global_assignment -name VHDL_FILE src/vendor/float_pkg_c.vhdl
-set_global_assignment -name VHDL_FILE src/vendor/fixed_pkg_c.vhdl
-set_global_assignment -name VHDL_FILE src/vendor/fixed_float_types_c.vhdl
 set_global_assignment -name VHDL_FILE src/snf0.vhd
 set_global_assignment -name VHDL_FILE src/tile/tile_generator.vhd
 set_global_assignment -name VHDL_FILE src/renderer/triangle_renderer.vhd
 set_global_assignment -name VHDL_FILE src/renderer/renderer_mesh.vhd
-set_global_assignment -name VHDL_FILE src/generated/tile_ram.vhd
 set_global_assignment -name VHDL_FILE src/generated/pll.vhd
 set_global_assignment -name VHDL_FILE src/framebuffer/fb_types.vhd
 set_global_assignment -name VHDL_FILE src/framebuffer/fb_lo_level_driver.vhd
 set_global_assignment -name VHDL_FILE src/framebuffer/fb_initializer.vhd
 set_global_assignment -name VHDL_FILE src/framebuffer/fb_display.vhd
-set_global_assignment -name VHDL_FILE src/common/random.vhd
-set_global_assignment -name VHDL_FILE src/common/led_blinker.vhd
-set_global_assignment -name VHDL_FILE src/common/common.vhd
-set_global_assignment -name VHDL_FILE tile_system.vhd
-set_global_assignment -name QIP_FILE src/generated/tile_ram.qip
+set_global_assignment -name VHDL_FILE src/buffers/tile_depthbuffer.vhd
 set_global_assignment -name QIP_FILE src/generated/pll.qip
-set_global_assignment -name CDF_FILE output_files/snf0.cdf
-set_global_assignment -name SDC_FILE snf0.sdc
-set_global_assignment -name QIP_FILE src/generated/sqrt.qip
-set_global_assignment -name QIP_FILE src/generated/depth_buf.qip
-set_global_assignment -name SIGNALTAP_FILE output_files/stp2.stp
-set_global_assignment -name SIGNALTAP_FILE output_files/stp1.stp
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

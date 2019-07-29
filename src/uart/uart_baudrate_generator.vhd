@@ -6,7 +6,7 @@ use ieee.math_real.all;
 entity uart_baudrate_generator is
   generic(
     BAUDRATE     : integer := 115200;
-	 MAIN_CLK_MHZ : integer := 50
+	MAIN_CLK_MHZ : integer := 50
   );
 
   port(

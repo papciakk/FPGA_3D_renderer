@@ -2,17 +2,20 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.std_logic_misc.all;
 use ieee.numeric_std.all;
+use work.all;
 use work.fb_types.all;
-use work.common.all;
-use work.pll;
+use work.stdint.all;
+use work.definitions.all;
+use work.config.all;
+use work.keyboard_inc.all;
 
 entity snf0 is
 	port(
 		CLK_50       : in    std_logic;
 		--		CLK_50_2       : in    std_logic;
-		--		PS2_CLK        : inout std_logic;
-		--		PS2_DATA       : inout std_logic;
-		UART_RXD     : in    std_logic;
+		PS2_CLK      : inout std_logic;
+		PS2_DATA     : inout std_logic;
+		--		UART_RXD     : in    std_logic;
 		UART_TXD     : out   std_logic;
 		--		SRAM_CLK       : out   std_logic;
 		--		SRAM_ADDR      : out   std_logic_vector(18 downto 0);
@@ -34,9 +37,9 @@ entity snf0 is
 		VGA1_WR_n    : out   std_logic;
 		VGA1_RESET_n : out   std_logic;
 		--		VGA1_TE        : in    std_logic;
-		VGA1_R       : inout std_logic_vector(7 downto 0);
-		VGA1_G       : out   std_logic_vector(7 downto 0);
-		VGA1_B       : out   std_logic_vector(7 downto 0);
+		VGA1_R       : inout slv8_t;
+		VGA1_G       : out   slv8_t;
+		VGA1_B       : out   slv8_t;
 		--		VGA2_R         : out   std_logic;
 		--		VGA2_G         : out   std_logic;
 		--		VGA2_B         : out   std_logic;
@@ -51,9 +54,9 @@ entity snf0 is
 end snf0;
 
 architecture behavioral of snf0 is
-	
+
 	constant DELAY_IN_TICKS : integer := 2500000;
-	
+
 	type fsm_state_type is (
 		st_idle,
 		st_start,
@@ -83,18 +86,18 @@ architecture behavioral of snf0 is
 	signal fb_initializer_enabled : std_logic := '1';
 
 	signal fb_clk        : std_logic;
-	signal fb_data_write : std_logic_vector(7 downto 0);
+	signal fb_data_write : slv8_t;
 	signal fb_op_start   : std_logic;
 	signal fb_op         : fb_lo_level_op_type;
 	signal fb_op_done    : std_logic;
 
 	signal fb_initializer_clk        : std_logic;
-	signal fb_initializer_data_write : std_logic_vector(7 downto 0);
+	signal fb_initializer_data_write : slv8_t;
 	signal fb_initializer_op_start   : std_logic;
 	signal fb_initializer_op         : fb_lo_level_op_type;
 
 	signal fb_disp_clk        : std_logic;
-	signal fb_disp_data_write : std_logic_vector(7 downto 0);
+	signal fb_disp_data_write : slv8_t;
 	signal fb_disp_op_start   : std_logic;
 	signal fb_disp_op         : fb_lo_level_op_type;
 
@@ -107,8 +110,8 @@ architecture behavioral of snf0 is
 	signal fb_disp_write_done  : std_logic;
 
 	-- framebuffer display out position, color input and window
-	signal screen_posx        : unsigned(15 downto 0);
-	signal screen_posy        : unsigned(15 downto 0);
+	signal screen_posx        : uint16_t;
+	signal screen_posy        : uint16_t;
 	signal screen_pixel_color : color_t;
 
 	signal screen_tile_rect    : rect_t;
@@ -117,14 +120,14 @@ architecture behavioral of snf0 is
 
 	----------------------------------------
 
-	signal fb_data_read : std_logic_vector(7 downto 0);
+	signal fb_data_read : slv8_t;
 
 	signal fb_init_start : std_logic := '0';
 	signal fb_init_done  : std_logic;
 
 	-----------------------------------------
-	signal tilegen_posx_out      : unsigned(15 downto 0);
-	signal tilegen_posy_out      : unsigned(15 downto 0);
+	signal tilegen_posx_out      : uint16_t;
+	signal tilegen_posy_out      : uint16_t;
 	signal tilegen_color_out     : color_t;
 	signal tilegen_put_pixel_out : std_logic;
 	signal tilegen_ready         : std_logic;
@@ -135,21 +138,27 @@ architecture behavioral of snf0 is
 	signal tilebuf_clear      : std_logic := '0';
 	signal tilebuf_clear_done : std_logic;
 
-	signal depth_in   : unsigned(15 downto 0);
-	signal depth_out  : unsigned(15 downto 0);
+	signal depth_in   : int16_t;
+	signal depth_out  : int16_t;
 	signal depth_wren : std_logic;
 
-	signal clk150     : std_logic;
-	signal pll_locked : STD_LOGIC;
+	signal pll_locked : std_logic;
 
 	signal enable_drawing : std_logic := '0';
 
 	signal measurment0_run   : std_logic := '0';
-	signal measurment0_value : u32;
+	signal measurment0_value : uint32_t;
 	signal measurment0_done  : std_logic;
-	signal delay_counter : integer;
-	signal measurment_send : std_logic := '0';
-	signal printf0_val : integer;
+	signal delay_counter     : integer;
+	signal measurment_send   : std_logic := '0';
+	signal printf0_val       : integer;
+
+	-----------------------------------------
+
+	signal input_clk : std_logic := '0';
+	signal key       : keys_t;
+	signal rot       : point3d_t;
+	signal scale     : int16_t;
 
 begin
 
@@ -159,7 +168,7 @@ begin
 			inclk0 => CLK_50,
 			c0     => fb_initializer_clk,
 			c1     => fb_disp_clk,
-			c2     => clk150,
+			--			c2     => ,
 			locked => pll_locked
 		);
 
@@ -232,7 +241,7 @@ begin
 			----------
 			depth_in          => depth_in,
 			depth_out         => depth_out,
-			clk50             => clk150,
+			clk50             => fb_disp_clk,
 			depth_wren        => depth_wren
 		);
 
@@ -250,7 +259,9 @@ begin
 			tile_num_in   => tilegen_tile_num_in,
 			depth_in      => depth_in,
 			depth_out     => depth_out,
-			depth_wren    => depth_wren
+			depth_wren    => depth_wren,
+			rot           => rot,
+			scale         => scale
 		);
 
 	led_blinker0 : entity work.led_blinker
@@ -258,7 +269,7 @@ begin
 			frequency => 1.0            -- Hz
 		)
 		port map(
-			clk50 => fb_initializer_clk,
+			clk50 => CLK_50,
 			rst   => not rst,
 			led   => LED(1)
 		);
@@ -274,11 +285,33 @@ begin
 
 	pritf0 : entity work.printf
 		port map(
-			send => 	measurment_send,
+			send     => measurment_send,
 			clk      => CLK_50,
 			rst      => not rst,
 			uart_txd => UART_TXD,
 			val      => printf0_val
+		);
+
+	keyboard_inputs_0 : entity work.keyboard_inputs
+		port map(
+			clk      => CLK_50,
+			rst      => not rst,
+			ps2_clk  => PS2_CLK,
+			ps2_data => PS2_DATA,
+			keys      => key
+		);
+
+	input_handler_0 : entity work.input_handler
+		generic map(
+			rot_init   => point3d(0, 0, 0),
+			scale_init => int16(1)
+		)
+		port map(
+			input_clk => input_clk,
+			rst       => not rst,
+			keys       => key,
+			rot       => rot,
+			scale     => scale
 		);
 
 	LED(0) <= rst;
@@ -293,7 +326,7 @@ begin
 
 	process(fb_initializer_clk, rst) is
 	begin
-		if rst = '0' then
+		if not rst then
 			state_init <= st_start;
 		elsif rising_edge(fb_initializer_clk) then
 			case state_init is
@@ -301,7 +334,7 @@ begin
 					fb_initializer_enabled <= '1';
 					enable_drawing         <= '0';
 
-					if pll_locked = '1' then
+					if pll_locked then
 						state_init <= st_fb_init;
 					else
 						state_init <= st_start;
@@ -315,7 +348,7 @@ begin
 
 				when st_fb_init_wait =>
 					fb_init_start <= '0';
-					if fb_init_done = '1' then
+					if fb_init_done then
 						fb_initializer_enabled <= '0';
 						enable_drawing         <= '1';
 						state_init             <= st_idle;
@@ -331,7 +364,7 @@ begin
 
 	process(fb_disp_clk, rst) is
 	begin
-		if rst = '0' then
+		if not rst then
 			state_drawing <= st_start;
 		elsif rising_edge(fb_disp_clk) then
 			case state_drawing is
@@ -342,7 +375,7 @@ begin
 					tilegen_tile_num_in <= 0;
 					state_drawing       <= st_wait;
 					measurment0_run     <= '0';
-					delay_counter <= 0;
+					delay_counter       <= 0;
 
 				when st_delay =>
 					if delay_counter < DELAY_IN_TICKS then
@@ -352,7 +385,7 @@ begin
 					end if;
 
 				when st_wait =>
-					if enable_drawing = '1' then
+					if enable_drawing then
 						state_drawing <= st_disp_clear;
 					else
 						state_drawing <= st_wait;
@@ -371,7 +404,7 @@ begin
 					fb_disp_start_write <= '0';
 					fb_disp_clear       <= '0';
 
-					if fb_disp_write_done = '1' then
+					if fb_disp_write_done then
 						state_drawing <= st_tilegen_clear;
 					else
 						state_drawing <= st_disp_clear_wait;
@@ -379,7 +412,8 @@ begin
 
 				-- GENERATE TILE
 
-			when st_tilegen_clear =>
+				when st_tilegen_clear =>
+					input_clk       <= '1';
 					measurment_send <= '0';
 					measurment0_run <= '1';
 					tilebuf_clear   <= '1';
@@ -387,7 +421,7 @@ begin
 
 				when st_tilegen_clear_wait =>
 					tilebuf_clear <= '0';
-					if tilebuf_clear_done = '1' then
+					if tilebuf_clear_done then
 						state_drawing <= st_init_tilegen;
 					else
 						state_drawing <= st_tilegen_clear_wait;
@@ -399,7 +433,7 @@ begin
 
 				when st_tilegen_wait =>
 					tilegen_start <= '0';
-					if tilegen_ready = '1' then
+					if tilegen_ready then
 						state_drawing <= st_screen_write;
 					else
 						state_drawing <= st_tilegen_wait;
@@ -408,6 +442,7 @@ begin
 				-- DISPLAY IMAGE
 
 				when st_screen_write =>
+					input_clk           <= '0';
 					fb_disp_clear       <= '0';
 					fb_disp_start_write <= '1';
 					state_drawing       <= st_screen_wait;
@@ -415,7 +450,7 @@ begin
 
 				when st_screen_wait =>
 					fb_disp_start_write <= '0';
-					if fb_disp_write_done = '1' then
+					if fb_disp_write_done then
 						state_drawing <= st_next_tile;
 					else
 						state_drawing <= st_screen_wait;
@@ -424,19 +459,20 @@ begin
 				-- TILE GENERATION MANAGEMENT
 
 				when st_next_tile =>
-					if tilegen_tile_num_in <= 20 - 2 then
+					if tilegen_tile_num_in <= TILES_CNT - 2 then
 						tilegen_tile_num_in <= tilegen_tile_num_in + 1;
 						state_drawing       <= st_tilegen_clear;
 					else
 						tilegen_tile_num_in <= 0;
 						measurment0_run     <= '0';
-						measurment_send <= '1';
-						printf0_val <= to_integer(measurment0_value);
-						
-						state_drawing       <= st_tilegen_clear;
+						measurment_send     <= '1';
+						printf0_val         <= to_integer(measurment0_value);
+
+						state_drawing <= st_tilegen_clear;
 					end if;
 
 				when st_end =>
+					null;
 			end case;
 		end if;
 	end process;

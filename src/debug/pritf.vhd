@@ -1,8 +1,8 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use work.common.all;
-use work.txt_util.all;
+use work.stdint.all;
+use work.config.all;
 
 entity printf is
 	port(
@@ -15,22 +15,18 @@ entity printf is
 	);
 end entity printf;
 
-architecture RTL of printf is
-	type state_type is (
-		st_start, st_idle, st_print_integer, st_print_integer_2, st_send_char_start, st_send_char_wait, st_send_newline_char, st_send_newline_char_wait
-	);
-	signal state, state_next : state_type := st_start;
-
+architecture rtl of printf is
 	signal uart_start_transmit, uart_start_transmit_next : std_logic := '0';
 	signal uart_baudrate_tick                            : std_logic;
 
-	signal val_d, val_d_next         : unsigned(31 downto 0);
-	signal val_char, val_char_next   : unsigned(3 downto 0);
-	signal uart_char, uart_char_next : unsigned(7 downto 0);
+	signal val_d, val_d_next         : uint32_t;
+	signal val_char, val_char_next   : uint4_t;
+	signal uart_char, uart_char_next : uint8_t;
 
-	type buf_arr_t is array (7 downto 0) of u8;
+	type buf_arr_t is array (7 downto 0) of uint8_t;
+
 	signal buf_arr                               : buf_arr_t;
-	signal buf_arr_pointer, buf_arr_pointer_next : s8;
+	signal buf_arr_pointer, buf_arr_pointer_next : int8_t;
 
 	function hex_to_ascii(val : unsigned(3 downto 0)) return unsigned is
 		variable v : integer;
@@ -57,12 +53,16 @@ architecture RTL of printf is
 		return to_unsigned(v, 8);
 	end function;
 
+	type state_type is (
+		st_start, st_idle, st_print_integer, st_print_integer_2, st_send_char_start, st_send_char_wait, st_send_newline_char, st_send_newline_char_wait
+	);
+	signal state, state_next : state_type := st_start;
 begin
 
 	uart_baudrate_generator0 : entity work.uart_baudrate_generator
 		generic map(
 			BAUDRATE     => 115200,
-			MAIN_CLK_MHZ => 50
+			MAIN_CLK_MHZ => MAIN_CLK_MHZ
 		)
 		port map(
 			clk  => clk,
@@ -114,10 +114,10 @@ begin
 				state_next               <= st_idle;
 			when st_idle =>
 				uart_start_transmit_next <= '0';
-				if send = '1' then
-					state_next <= st_print_integer;
+				if send then
+					state_next           <= st_print_integer;
 					buf_arr_pointer_next <= (others => '0');
-					val_d_next <= to_unsigned(val, 32);
+					val_d_next           <= to_unsigned(val, 32);
 				else
 					state_next <= st_idle;
 				end if;
@@ -133,8 +133,8 @@ begin
 				buf_arr(to_integer(buf_arr_pointer)) <= hex_to_ascii(val_char);
 
 				if val_d > 0 then
-					buf_arr_pointer_next                 <= buf_arr_pointer + 1;
-					state_next <= st_print_integer;
+					buf_arr_pointer_next <= buf_arr_pointer + 1;
+					state_next           <= st_print_integer;
 				else
 					state_next <= st_send_char_start;
 				end if;
@@ -147,7 +147,7 @@ begin
 
 			when st_send_char_wait =>
 				uart_start_transmit_next <= '0';
-				if done = '1' then
+				if done then
 					if buf_arr_pointer = -1 then
 						state_next <= st_send_newline_char;
 					else
@@ -164,7 +164,7 @@ begin
 
 			when st_send_newline_char_wait =>
 				uart_start_transmit_next <= '0';
-				if done = '1' then
+				if done then
 					state_next <= st_idle;
 				else
 					state_next <= st_send_newline_char_wait;
@@ -172,5 +172,5 @@ begin
 
 		end case;
 	end process;
-end architecture RTL;
+end architecture rtl;
 
