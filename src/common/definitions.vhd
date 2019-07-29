@@ -94,6 +94,14 @@ package definitions is
 	function point3d_32(p : point3d_t) return point3d_32_t;
 	function triangle3d(v1, v2, v3 : point3d_t) return triangle3d_t;
 
+	----------------------------------------------------
+
+	function sel(cond : boolean; opt1 : std_logic; opt2 : std_logic) return std_logic;
+	function sel(cond : boolean; opt1 : std_logic_vector; opt2 : std_logic_vector) return std_logic_vector;
+	function sel(cond : boolean; opt1 : unsigned; opt2 : unsigned) return unsigned;
+	function sel(cond : boolean; opt1 : signed; opt2 : signed) return signed;
+	function sel(cond : boolean; opt1 : integer; opt2 : integer) return integer;
+
 end package definitions;
 
 package body definitions is
@@ -215,6 +223,53 @@ package body definitions is
 	function triangle3d(v1, v2, v3 : point3d_t) return triangle3d_t is
 	begin
 		return (v1, v2, v3);
+	end function;
+
+	----------------------------------------------------
+
+	function sel(cond : boolean; opt1 : std_logic; opt2 : std_logic) return std_logic is
+	begin
+		if cond then
+			return opt1;
+		else
+			return opt2;
+		end if;
+	end function;
+
+	function sel(cond : boolean; opt1 : std_logic_vector; opt2 : std_logic_vector) return std_logic_vector is
+	begin
+		if cond then
+			return opt1;
+		else
+			return opt2;
+		end if;
+	end function;
+
+	function sel(cond : boolean; opt1 : unsigned; opt2 : unsigned) return unsigned is
+	begin
+		if cond then
+			return opt1;
+		else
+			return opt2;
+		end if;
+	end function;
+
+	function sel(cond : boolean; opt1 : signed; opt2 : signed) return signed is
+	begin
+		if cond then
+			return opt1;
+		else
+			return opt2;
+		end if;
+	end function;
+
+	function sel(cond : boolean; opt1 : integer; opt2 : integer) return integer is
+	begin
+		if cond then
+			return opt1;
+		else
+			return opt2;
+		end if;
 	end function;
 
 end package body;

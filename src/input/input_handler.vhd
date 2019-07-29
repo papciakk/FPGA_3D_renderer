@@ -13,15 +13,15 @@ entity input_handler is
 
 	port(
 		input_clk : in  std_logic;
-		rst          : in  std_logic;
-		key          : in  key_t;
-		rot          : out point3d_t := rot_init;
-		scale        : out int16_t   := scale_init
+		rst       : in  std_logic;
+		keys      : in  keys_t;
+		rot       : out point3d_t := rot_init;
+		scale     : out int16_t   := scale_init
 		--update_rot   : out std_logic := '1'
 	);
 end entity input_handler;
 
-architecture arch of input_handler is
+architecture rtl of input_handler is
 begin
 
 	--	update_rot <= start or key(KEY_W) or key(KEY_S) or key(KEY_A) or key(KEY_D) or key(KEY_Q) or key(KEY_E);
@@ -32,26 +32,30 @@ begin
 			rot   <= rot_init;
 			scale <= scale_init;
 		elsif rising_edge(input_clk) then
-			case key is
-				when KEY_A =>
-					rot.x <= rot.x + 1;
-				when KEY_D =>
-					rot.x <= rot.x - 1;
-				when KEY_W =>
-					rot.y <= rot.y + 1;
-				when KEY_S =>
-					rot.y <= rot.y + 1;
-				when KEY_Q =>
-					rot.z <= rot.z + 1;
-				when KEY_E =>
-					rot.z <= rot.z - 1;
-				when KEY_Z =>
-					scale <= scale + 1;
-				when KEY_X =>
-					scale <= scale - 1;							
-				when others => 
-			end case;
+			if keys(KEY_A) = '1' then
+				rot.x <= sel(rot.x < 360, rot.x + 1, int16(1));
+			end if;
+			if keys(KEY_D) = '1' then
+				rot.x <= sel(rot.x > 0, rot.x - 1, int16(360));
+			end if;
+			if keys(KEY_W) = '1' then
+				rot.y <= sel(rot.y < 360, rot.y + 1, int16(1));
+			end if;
+			if keys(KEY_S) = '1' then
+				rot.y <= sel(rot.y > 0, rot.y - 1, int16(360));
+			end if;
+			if keys(KEY_Q) = '1' then
+				rot.z <= sel(rot.z < 360, rot.z + 1, int16(1));
+			end if;
+			if keys(KEY_E) = '1' then
+				rot.z <= sel(rot.z > 0, rot.z - 1, int16(360));
+			end if;
+			if keys(KEY_Z) = '1' then
+				scale <= sel(scale < 23, scale + 1, int16(23));
+			end if;
+			if keys(KEY_X) = '1' then
+				scale <= sel(scale > 1, scale - 1, int16(1));
+			end if;
 		end if;
 	end process;
-end architecture arch;
-
+end architecture rtl;

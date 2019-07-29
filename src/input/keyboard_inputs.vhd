@@ -2,6 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.stdint.all;
+use work.definitions.all;
 use work.keyboard_inc.all;
 
 entity keyboard_inputs is
@@ -10,7 +11,7 @@ entity keyboard_inputs is
 		rst      : in     std_logic;
 		ps2_clk  : in     std_logic;
 		ps2_data : in     std_logic;
-		key      : out    key_t;
+		keys     : out    keys_t;
 		error    : out    std_logic;
 		scancode : buffer uint8_t
 	);
@@ -36,36 +37,31 @@ begin
 	begin
 		if rst then
 			break_code <= '0';
-			key        <= KEY_NONE;
+			keys       <= (others => '0');
 		elsif rising_edge(code_ready) then
-			if not break_code then
-				case scancode is
-					when X"1D" =>
-						key <= KEY_W;
-					when X"1B" =>
-						key <= KEY_S;
-					when X"1C" =>
-						key <= KEY_A;
-					when X"23" =>
-						key <= KEY_D;
-					when X"15" =>
-						key <= KEY_Q;
-					when X"24" =>
-						key <= KEY_E;
-					when X"1A" =>
-						key <= KEY_Z;
-					when X"22" =>
-						key <= KEY_X;
-					when others =>
-						null;
-				end case;
-			else
-				key <= KEY_NONE;
-			end if;
+			case scancode is
+				when X"1D" =>
+					keys(KEY_W) <= not break_code;
+				when X"1B" =>
+					keys(KEY_S) <= not break_code;
+				when X"1C" =>
+					keys(KEY_A) <= not break_code;
+				when X"23" =>
+					keys(KEY_D) <= not break_code;
+				when X"15" =>
+					keys(KEY_Q) <= not break_code;
+				when X"24" =>
+					keys(KEY_E) <= not break_code;
+				when X"1A" =>
+					keys(KEY_Z) <= not break_code;
+				when X"22" =>
+					keys(KEY_X) <= not break_code;
+				when X"F0" =>
+					break_code <= '1';
+				when others =>
+			end case;
 
-			if scancode = X"F0" then
-				break_code <= '1';
-			else
+			if scancode /= X"F0" then
 				break_code <= '0';
 			end if;
 		end if;

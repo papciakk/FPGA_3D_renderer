@@ -101,13 +101,23 @@ architecture bahavioral of tile_generator is
 		return color(diffuse, diffuse, diffuse);
 	end function;
 
-	function rescale_vertices_cast_to_16bit(vertex : point3d_32_t)
+	function cast_to_16bit(vertex : point3d_32_t)
 	return point3d_t is
 	begin
 		return (
-			x => resize(shift_right(vertex.x, 7), 16) + HALF_FULLSCREEN_RES_X,
-			y => resize(shift_right(vertex.y, 7), 16) + HALF_FULLSCREEN_RES_Y,
+			x => resize(vertex.x, 16),
+			y => resize(vertex.y, 16),
 			z => resize(vertex.z, 16)
+		);
+	end function;
+
+	function rescale_vertices(vertex : point3d_t)
+	return point3d_t is
+	begin
+		return (
+			x => shift_right(vertex.x, 7) + HALF_FULLSCREEN_RES_X,
+			y => shift_right(vertex.y, 7) + HALF_FULLSCREEN_RES_Y,
+			z => shift_right(vertex.z, 5)
 		);
 	end function;
 
@@ -151,12 +161,13 @@ architecture bahavioral of tile_generator is
 	type state_type is (
 		st_start, st_idle,
 		st_prepare_triangle_vertices_request_sincos_x,
-		st_get_sincos_x, st_get_sincos_y_calc_rot_x,
-		st_get_sincos_z_calc_rot_y, st_calc_rotz_cast_to_32bit,
+		st_get_sincos_x_request_sincos_y, st_get_sincos_y_request_sincos_z_calc_rot_x,
+		st_get_sincos_z_calc_rot_y, st_calc_rotz,
 		st_calc_scale,
 		st_rescale_attributes,
 		st_calc_lighting_for_triangle, st_rendering_misc,
-		st_rendering_task_wait, st_increment_triangle_id
+		st_rendering_task_wait, st_increment_triangle_id,
+		st_cast_to_32bit, st_cast_to_16bit
 	);
 	signal state, state_next : state_type := st_start;
 
@@ -223,7 +234,7 @@ begin
 	end process;
 
 	process(all) is
-		variable area_v : int16_t;
+		variable area_v     : int16_t;
 		variable triangle_v : triangle2d_t;
 	begin
 		state_next           <= state;
@@ -273,18 +284,19 @@ begin
 
 				angle_next <= rot.x;
 
-				state_next <= st_get_sincos_x;
+				state_next <= st_get_sincos_x_request_sincos_y;
 
-			when st_get_sincos_x =>
+			when st_get_sincos_x_request_sincos_y =>
 				sinx_next  <= sin;
 				cosx_next  <= cos;
 				angle_next <= rot.y;
 
-				state_next <= st_get_sincos_y_calc_rot_x;
+				state_next <= st_get_sincos_y_request_sincos_z_calc_rot_x;
 
-			when st_get_sincos_y_calc_rot_x =>
-				siny_next <= sin;
-				cosy_next <= cos;
+			when st_get_sincos_y_request_sincos_z_calc_rot_x =>
+				siny_next  <= sin;
+				cosy_next  <= cos;
+				angle_next <= rot.z;
 
 				attr0_next.pos <= calc_rotx(sinx, cosx, attr0.pos);
 				attr1_next.pos <= calc_rotx(sinx, cosx, attr1.pos);
@@ -294,18 +306,25 @@ begin
 
 			when st_get_sincos_z_calc_rot_y =>
 				sinz_next <= sin;
-				cosy_next <= cos;
+				cosz_next <= cos;
 
 				attr0_next.pos <= calc_roty(siny, cosy, attr0.pos);
 				attr1_next.pos <= calc_roty(siny, cosy, attr1.pos);
 				attr2_next.pos <= calc_roty(siny, cosy, attr2.pos);
 
-				state_next <= st_calc_rotz_cast_to_32bit;
+				state_next <= st_calc_rotz;
 
-			when st_calc_rotz_cast_to_32bit =>
-				v0_32_next <= point3d_32(calc_rotz(siny, cosy, attr0.pos));
-				v1_32_next <= point3d_32(calc_rotz(siny, cosy, attr1.pos));
-				v2_32_next <= point3d_32(calc_rotz(siny, cosy, attr2.pos));
+			when st_calc_rotz =>
+				attr0_next.pos <= calc_rotz(sinz, cosz, attr0.pos);
+				attr1_next.pos <= calc_rotz(sinz, cosz, attr1.pos);
+				attr2_next.pos <= calc_rotz(sinz, cosz, attr2.pos);
+
+				state_next <= st_cast_to_32bit;
+
+			when st_cast_to_32bit =>
+				v0_32_next <= point3d_32(attr0.pos);
+				v1_32_next <= point3d_32(attr1.pos);
+				v2_32_next <= point3d_32(attr2.pos);
 
 				state_next <= st_calc_scale;
 
@@ -314,27 +333,34 @@ begin
 				v1_32_next <= calc_scale(scale, v1_32);
 				v2_32_next <= calc_scale(scale, v2_32);
 
+				state_next <= st_cast_to_16bit;
+
+			when st_cast_to_16bit =>
+				attr0_next.pos <= cast_to_16bit(v0_32);
+				attr1_next.pos <= cast_to_16bit(v1_32);
+				attr2_next.pos <= cast_to_16bit(v2_32);
+
 				state_next <= st_rescale_attributes;
 
 			when st_rescale_attributes =>
-				attr0_next.pos <= rescale_vertices_cast_to_16bit(v0_32);
-				attr1_next.pos <= rescale_vertices_cast_to_16bit(v1_32);
-				attr2_next.pos <= rescale_vertices_cast_to_16bit(v2_32);
+				attr0_next.pos <= rescale_vertices(attr0.pos);
+				attr1_next.pos <= rescale_vertices(attr1.pos);
+				attr2_next.pos <= rescale_vertices(attr2.pos);
 
 				state_next <= st_calc_lighting_for_triangle;
 
 			when st_calc_lighting_for_triangle =>
-				
+
 				-- project to screen space
-				triangle_v := (
+				triangle_v    := (
 					(x => attr0.pos.x, y => attr0.pos.y),
 					(x => attr1.pos.x, y => attr1.pos.y),
 					(x => attr2.pos.x, y => attr2.pos.y)
 				);
 				triangle_next <= triangle_v;
-				
+
 				-- calculate rendering bounding box
-				
+
 				render_rect_next <= get_current_rendering_bounding_box(triangle_v, tile_rect_in);
 
 				-- calc area
@@ -353,7 +379,7 @@ begin
 				end if;
 
 			when st_rendering_misc =>
-				depths_next   <= point3d(attr0.pos.y, attr1.pos.y, attr2.pos.y);
+				depths_next <= point3d(attr0.pos.y, attr1.pos.y, attr2.pos.y);
 
 				ready_out_next       <= '0';
 				start_rendering_next <= '1';
@@ -383,4 +409,3 @@ begin
 	end process;
 
 end architecture bahavioral;
-

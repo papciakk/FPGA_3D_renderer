@@ -156,7 +156,7 @@ architecture behavioral of snf0 is
 	-----------------------------------------
 
 	signal input_clk : std_logic := '0';
-	signal key       : key_t;
+	signal key       : keys_t;
 	signal rot       : point3d_t;
 	signal scale     : int16_t;
 
@@ -298,7 +298,7 @@ begin
 			rst      => not rst,
 			ps2_clk  => PS2_CLK,
 			ps2_data => PS2_DATA,
-			key      => key
+			keys      => key
 		);
 
 	input_handler_0 : entity work.input_handler
@@ -309,7 +309,7 @@ begin
 		port map(
 			input_clk => input_clk,
 			rst       => not rst,
-			key       => key,
+			keys       => key,
 			rot       => rot,
 			scale     => scale
 		);
