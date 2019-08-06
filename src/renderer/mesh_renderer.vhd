@@ -6,7 +6,7 @@ use work.definitions.all;
 use work.config.all;
 use work.tiles.all;
 
-entity tile_system is
+entity mesh_renderer is
 	port(
 		clk                : in  std_logic;
 		rst                : in  std_logic;
@@ -21,9 +21,9 @@ entity tile_system is
 		tilebuf_clear      : in  std_logic;
 		tilebuf_clear_done : out std_logic
 	);
-end entity tile_system;
+end entity mesh_renderer;
 
-architecture rtl of tile_system is
+architecture rtl of mesh_renderer is
 
 	signal start_rendering_tile, start_rendering_tile_next : std_logic := '0';
 	signal tile_rendered                                   : std_logic;
@@ -68,7 +68,7 @@ begin
 			depth_wren        => depth_wren
 		);
 
-	tile_generator0 : entity work.tile_generator
+	tile_renderer0 : entity work.tile_renderer
 		port map(
 			clk                   => clk,
 			rst                   => rst,

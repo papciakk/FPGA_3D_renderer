@@ -3,9 +3,9 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.stdint.all;
 use work.definitions.all;
-use work.rendering_inc.all;
+use work.renderer_inc.all;
 
-entity renderer_triangle is
+entity triangle_rasterizer is
 	port(
 		clk           : in  std_logic;
 		rst           : in  std_logic;
@@ -24,9 +24,9 @@ entity renderer_triangle is
 		depth_buf_out : in  int16_t;
 		depth_wren    : out std_logic
 	);
-end entity renderer_triangle;
+end entity;
 
-architecture RTL of renderer_triangle is
+architecture RTL of triangle_rasterizer is
 
 	function interpolate_color_component(
 		c0, c1, c2 : slv8_t;

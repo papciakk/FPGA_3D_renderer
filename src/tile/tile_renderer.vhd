@@ -4,10 +4,10 @@ use ieee.numeric_std.all;
 use work.stdint.all;
 use work.definitions.all;
 use work.config.all;
-use work.renderer_mesh.all;
-use work.rendering_inc.all;
+use work.mesh.all;
+use work.renderer_inc.all;
 
-entity tile_generator is
+entity tile_renderer is
 	port(
 		clk                   : in  std_logic;
 		rst                   : in  std_logic;
@@ -24,9 +24,9 @@ entity tile_generator is
 		rot                   : in  point3d_t;
 		scale                 : in  int16_t
 	);
-end entity tile_generator;
+end entity;
 
-architecture bahavioral of tile_generator is
+architecture rtl of tile_renderer is
 
 	function calc_rotx(sinx, cosx : int16_t; vertex : point3d_t)
 	return point3d_t is
@@ -181,7 +181,7 @@ begin
 			cos_out => cos
 		);
 
-	triangle_renderer0 : entity work.renderer_triangle
+	triangle_rasterizer0 : entity work.triangle_rasterizer
 		port map(
 			clk           => clk,
 			rst           => rst,
@@ -408,4 +408,4 @@ begin
 		end case;
 	end process;
 
-end architecture bahavioral;
+end architecture rtl;

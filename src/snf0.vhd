@@ -221,7 +221,7 @@ begin
 			fb_color_b    => VGA1_B
 		);
 
-	tile_system0 : entity work.tile_system
+	mesh_renderer0 : entity work.mesh_renderer
 		port map(
 			clk                => main_clk,
 			rst                => not rst,

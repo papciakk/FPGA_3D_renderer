@@ -5,7 +5,7 @@ use ieee.math_real.all;
 use work.stdint.all;
 use work.definitions.all;
 
-package rendering_inc is
+package renderer_inc is
 
 	function get_triangle_bounding_box(triangle : triangle2d_t) return srect_t;
 	function get_triangle_and_tile_intersected_bounding_box(triangle_bb : srect_t; tile_bb : rect_t) return srect_t;
@@ -14,10 +14,10 @@ package rendering_inc is
 	function edge_function(a, b, c : point2d_t) return int16_t;
 	function edge_function(a, b, c : point3d_t) return int16_t;
 
-end package rendering_inc;
+end package;
 
 
-package body rendering_inc is
+package body renderer_inc is
 
 	function get_triangle_bounding_box(triangle : triangle2d_t) return srect_t is
 	begin

@@ -1,6 +1,6 @@
 use work.definitions.all;
 
-package renderer_mesh is
+package mesh is
 	constant vertices : vertex_attr_arr_t(0 to 25) := (
 		va(0, 0, 19659, 0, 0, 32767), va(0, 13899, 13899, 0, 24529, 21724), va(-9829, 9829, 13899, -17346, 17346, 21723), 
 		va(-13899, 0, 13899, -24529, 0, 21724), va(-9829, -9829, 13899, -17346, -17346, 21723), va(0, -13899, 13899, 0, -24529, 21724), 
@@ -26,4 +26,4 @@ package renderer_mesh is
 		idx(25, 23, 22), idx(25, 24, 23), idx(25, 17, 24)
 	);
 
-end package renderer_mesh;
+end package;
