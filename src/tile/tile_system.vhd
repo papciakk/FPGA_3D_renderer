@@ -4,60 +4,31 @@ use ieee.numeric_std.all;
 use work.stdint.all;
 use work.definitions.all;
 use work.config.all;
+use work.tiles.all;
 
 entity tile_system is
 	port(
-		clk           : in  std_logic;
-		rst           : in  std_logic;
-		posx_out      : out uint16_t;
-		posy_out      : out uint16_t;
-		color_out     : out color_t;
-		put_pixel_out : out std_logic;
-		tile_rect_out : out rect_t;
-		ready_out     : out std_logic;
-		start_in      : in  std_logic;
-		tile_num_in   : in  integer;
-		depth_in      : out int16_t;
-		depth_out     : in  int16_t;
-		depth_wren    : out std_logic;
-		rot           : in  point3d_t;
-		scale         : in  int16_t
+		clk                : in  std_logic;
+		rst                : in  std_logic;
+		ready_out          : out std_logic;
+		start_in           : in  std_logic;
+		tile_num_in        : in  integer;
+		rot                : in  point3d_t;
+		scale              : in  int16_t;
+		screen_posx        : in  uint16_t;
+		screen_posy        : in  uint16_t;
+		screen_pixel_color : out color_t;
+		tilebuf_clear      : in  std_logic;
+		tilebuf_clear_done : out std_logic
 	);
 end entity tile_system;
 
 architecture rtl of tile_system is
 
-	function get_tile_rect(x, y : integer) return rect_t is
-	begin
-		return (
-			x0 => to_unsigned(x * TILE_RES_X, 16),
-			x1 => to_unsigned((x + 1) * TILE_RES_X, 16),
-			y0 => to_unsigned(y * TILE_RES_Y, 16),
-			y1 => to_unsigned((y + 1) * TILE_RES_Y, 16)
-		);
-	end function;
-
-	type rect_arr_t is array (natural range <>) of rect_t;
-
-	function prepare_tile_rects return rect_arr_t is
-		constant TILES_X_CNT : integer := integer(real(FULLSCREEN_RES_X) / real(TILE_RES_X));
-		constant TILES_Y_CNT : integer := integer(real(FULLSCREEN_RES_Y) / real(TILE_RES_Y));
-		variable r           : rect_arr_t(0 to (TILES_X_CNT * TILES_Y_CNT - 1));
-	begin
-		for yi in 0 to (TILES_Y_CNT - 1) loop
-			for xi in 0 to (TILES_X_CNT - 1) loop
-				r(yi * TILES_X_CNT + xi) := get_tile_rect(xi, yi);
-			end loop;
-		end loop;
-		return r;
-	end function;
-
 	signal start_rendering_tile, start_rendering_tile_next : std_logic := '0';
 	signal tile_rendered                                   : std_logic;
 
 	signal untransposed_posx, untransposed_posy : uint16_t;
-
-	constant tile_rects : rect_arr_t := prepare_tile_rects;
 
 	signal current_tile_rect : rect_t;
 	signal ready_out_next    : std_logic;
@@ -66,7 +37,36 @@ architecture rtl of tile_system is
 		st_start, st_idle, st_render_tile, st_render_tile_wait
 	);
 	signal state, state_next : state_type := st_start;
+	signal posx              : uint16_t;
+	signal posy              : uint16_t;
+	signal put_pixel         : std_logic;
+	signal color             : color_t;
+	signal depth_in          : int16_t;
+	signal depth_out         : int16_t;
+	signal depth_wren        : std_logic;
 begin
+
+	tile_buffer0 : entity work.tile_buffer
+		port map(
+			screen_clk        => clk,
+			screen_posx       => screen_posx,
+			screen_posy       => screen_posy,
+			color_out         => screen_pixel_color,
+			----------
+			tilegen_clk       => clk,
+			tilegen_posx      => posx,
+			tilegen_posy      => posy,
+			tilegen_put_pixel => put_pixel,
+			color_in          => color,
+			----------
+			rst               => rst,
+			clear             => tilebuf_clear,
+			clear_done        => tilebuf_clear_done,
+			----------
+			depth_in          => depth_in,
+			depth_out         => depth_out,
+			depth_wren        => depth_wren
+		);
 
 	tile_generator0 : entity work.tile_generator
 		port map(
@@ -74,8 +74,8 @@ begin
 			rst                   => rst,
 			trianglegen_posx_out  => untransposed_posx,
 			trianglegen_posy_out  => untransposed_posy,
-			trianglegen_put_pixel => put_pixel_out,
-			color_out             => color_out,
+			trianglegen_put_pixel => put_pixel,
+			color_out             => color,
 			tile_rect_in          => current_tile_rect,
 			start_in              => start_rendering_tile,
 			ready_out             => tile_rendered,
@@ -86,10 +86,10 @@ begin
 			scale                 => scale
 		);
 
-	posx_out <= untransposed_posx - current_tile_rect.x0;
-	posy_out <= untransposed_posy - current_tile_rect.y0;
+	posx <= untransposed_posx - current_tile_rect.x0;
+	posy <= untransposed_posy - current_tile_rect.y0;
 
-	tile_rect_out <= current_tile_rect;
+	current_tile_rect <= tile_rects(tile_num_in);
 
 	process(clk, rst) is
 	begin
@@ -116,7 +116,6 @@ begin
 
 			when st_idle =>
 				start_rendering_tile_next <= '0';
-				current_tile_rect         <= tile_rects(tile_num_in);
 
 				if start_in then
 					state_next <= st_render_tile;

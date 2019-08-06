@@ -25,7 +25,6 @@ entity tile_buffer is
 		---------------------------------------------------
 		depth_in          : in  int16_t;
 		depth_out         : out int16_t;
-		clk50             : in  std_logic;
 		depth_wren        : in  std_logic
 	);
 end entity tile_buffer;
@@ -89,7 +88,7 @@ begin
 			WORDS      => TILE_RES_X * TILE_RES_Y
 		)
 		port map(
-			clk   => clk50,
+			clk   => tilegen_clk,
 			raddr => ram_addr_wr,
 			waddr => ram_addr_wr,
 			data  => depth_in_raw,
