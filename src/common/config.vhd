@@ -12,7 +12,7 @@ package config is
 	constant DEPTH_BITS     : integer := 16;
 
 	constant TILE_RES_X : integer := 128;
-	constant TILE_RES_Y : integer := 120;
+	constant TILE_RES_Y : integer := 96;
 
 	constant FULLSCREEN_RES_X : integer := 640;
 	constant FULLSCREEN_RES_Y : integer := 480;

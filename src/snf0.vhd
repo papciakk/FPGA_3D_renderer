@@ -62,18 +62,6 @@ architecture behavioral of snf0 is
 		st_fb_init, st_fb_init_wait);
 	signal state_init : fsm_state_type := st_start;
 
-	type drawing_state_type is (
-		st_start,
-		st_wait_for_framebuffer,
-		st_screen_write,
-		st_tilegen_start_task, st_tilegen_task_wait,
-		st_display_clear, st_display_clear_wait,
-		st_screen_wait,
-		st_tilegen_clear, st_tilegen_clear_wait,
-		st_wait, st_get_tile_wait
-	);
-	signal state_drawing : drawing_state_type := st_start;
-	
 	type state_tile_type is (
 		st_start,
 		st_idle,
@@ -117,8 +105,6 @@ architecture behavioral of snf0 is
 	signal screen_posx        : uint16_t;
 	signal screen_posy        : uint16_t;
 	signal screen_pixel_color : color_t;
-
-	signal fb_disp_window_rect : rect_t := FULLSCREEN_RECT;
 	----------------------
 
 	----------------------------------------
@@ -129,13 +115,9 @@ architecture behavioral of snf0 is
 	signal fb_init_done  : std_logic;
 
 	-----------------------------------------
-	signal tilegen_ready       : std_logic;
-	signal tilegen_start       : std_logic := '0';
-	signal tile_num : integer   := 0;
+	signal tile_num : integer := 0;
 
 	-----------------------------------------
-	signal tilebuf_clear      : std_logic := '0';
-	signal tilebuf_clear_done : std_logic;
 
 	signal pll_locked : std_logic;
 
@@ -144,20 +126,20 @@ architecture behavioral of snf0 is
 	signal measurment0_run   : std_logic := '0';
 	signal measurment0_value : uint32_t;
 	signal measurment0_done  : std_logic;
-	signal delay_counter     : integer;
 	signal measurment_send   : std_logic := '0';
 	signal printf0_val       : integer;
 
 	-----------------------------------------
 
-	signal input_clk : std_logic := '0';
-	signal key       : keys_t;
-	signal rot       : point3d_t;
-	signal scale     : int16_t;
+	signal input_clk            : std_logic := '0';
+	signal key                  : keys_t;
+	signal rot                  : point3d_t;
+	signal scale                : int16_t;
 	signal start_screen_display : std_logic := '0';
-	signal current_tile : integer;
-	signal tile_num_request : std_logic;
-	signal tile_num_ready : std_logic;
+	signal tile_num_request     : std_logic;
+	signal tile_num_ready       : std_logic;
+
+	signal fb_disp_window_rect : rect_t;
 
 begin
 
@@ -225,16 +207,21 @@ begin
 		port map(
 			clk                => main_clk,
 			rst                => not rst,
-			ready_out          => tilegen_ready,
-			start_in           => tilegen_start,
-			tile_num_in        => tile_num,
+			-------------------------------
 			rot                => rot,
 			scale              => scale,
+			-------------------------------
+			screen_ready       => framebuffer_ready and start_screen_display,
+			screen_start_write => fb_disp_start_write,
+			screen_write_done  => fb_disp_write_done,
+			screen_rect        => fb_disp_window_rect,
 			screen_posx        => screen_posx,
 			screen_posy        => screen_posy,
 			screen_pixel_color => screen_pixel_color,
-			tilebuf_clear      => tilebuf_clear,
-			tilebuf_clear_done => tilebuf_clear_done
+			-------------------------------
+			task_request       => tile_num_request,
+			task_ready         => tile_num_ready,
+			task_tile_num      => tile_num
 		);
 
 	led_blinker0 : entity work.led_blinker
@@ -288,8 +275,8 @@ begin
 	--		);
 
 	LED(0) <= rst;
-	
-	start_screen_display <= LED(1); 
+
+	start_screen_display <= LED(1);
 
 	rst <= BTN(0);
 
@@ -339,116 +326,14 @@ begin
 	process(main_clk, rst) is
 	begin
 		if not rst then
-			state_drawing <= st_start;
-		elsif rising_edge(main_clk) then
-			case state_drawing is
-
-				when st_start =>
-					fb_disp_start_write <= '0';
-					tilegen_start       <= '0';
-					state_drawing       <= st_wait_for_framebuffer;
-					tile_num_request <= '0';
-
-				when st_wait_for_framebuffer =>
-					if framebuffer_ready then
-						state_drawing <= st_display_clear;
-					else
-						state_drawing <= st_wait_for_framebuffer;
-					end if;
-
-				-- CLEAR SCREEN
-
-				when st_display_clear =>
-					fb_disp_start_write <= '1';
-					fb_disp_clear       <= '1';
-					fb_disp_clear_color <= (r => X"00", g => X"00", b => X"FF");
-					fb_disp_window_rect <= FULLSCREEN_RECT;
-					state_drawing       <= st_display_clear_wait;
-
-				when st_display_clear_wait =>
-					fb_disp_start_write <= '0';
-					fb_disp_clear       <= '0';
-
-					if fb_disp_write_done then
-						state_drawing <= st_tilegen_clear;
-					else
-						state_drawing <= st_display_clear_wait;
-					end if;
-
-				-- GENERATE TILE
-
-				when st_tilegen_clear =>
-					tilebuf_clear <= '1';
-					state_drawing <= st_tilegen_clear_wait;
-
-				when st_tilegen_clear_wait =>
-					tilebuf_clear <= '0';
-					if tilebuf_clear_done then
-						state_drawing <= st_tilegen_start_task;
-					else
-						state_drawing <= st_tilegen_clear_wait;
-					end if;
-
-				when st_tilegen_start_task =>
-					tilegen_start <= '1';
-					state_drawing <= st_tilegen_task_wait;
-
-				when st_tilegen_task_wait =>
-					tilegen_start <= '0';
-					if tilegen_ready then
-						state_drawing <= st_wait;
-					else
-						state_drawing <= st_tilegen_task_wait;
-					end if;
-
-				-- DISPLAY IMAGE
-				
-				when st_wait =>
-					if start_screen_display then
-						state_drawing <= st_screen_write;
-					else
-						state_drawing <= st_wait;
-					end if;				
-
-				when st_screen_write =>
-					fb_disp_clear       <= '0';
-					fb_disp_start_write <= '1';
-					fb_disp_window_rect <= tile_rects(current_tile);
-					state_drawing       <= st_screen_wait;
-
-				when st_screen_wait =>
-					fb_disp_start_write <= '0';
-					if fb_disp_write_done then
-						tile_num_request <= '1';
-						state_drawing <= st_get_tile_wait;
-					else
-						state_drawing <= st_screen_wait;
-					end if;
-					
-				when st_get_tile_wait =>
-					tile_num_request <= '0';
-					if tile_num_ready then
-						current_tile <= tile_num;
-						state_drawing <= st_tilegen_clear;
-					else
-						state_drawing <= st_get_tile_wait;
-					end if;
-
-			end case;
-		end if;
-	end process;
-	
-	process(main_clk, rst) is
-	begin
-		if not rst then
 			state_tile <= st_start;
 		elsif rising_edge(main_clk) then
 			case state_tile is
-				
+
 				when st_start =>
-					tile_num <= 0;
+					tile_num       <= 0;
 					tile_num_ready <= '0';
-					state_tile       <= st_idle;
+					state_tile     <= st_idle;
 
 				when st_idle =>
 					tile_num_ready <= '0';
@@ -457,14 +342,14 @@ begin
 					else
 						state_tile <= st_idle;
 					end if;
-					
+
 				when st_next_tile =>
 					if tile_num <= TILES_CNT - 2 then
 						tile_num <= tile_num + 1;
 					else
 						tile_num <= 0;
 					end if;
-					
+
 					tile_num_ready <= '1';
 
 					rot.x <= sel(rot.x > 360, int16(1), rot.x + 1);

@@ -154,7 +154,7 @@ begin
 
 			when st_render_1 =>
 				put_pixel_out_next <= '0';
-				if e0 >= 0 and e1 >= 0 and e2 >= 0 then
+				if true then -- e0 >= 0 and e1 >= 0 and e2 >= 0
 					state_next <= st_interpolate_r;
 				else
 					x_next     <= x + 1;
@@ -188,7 +188,7 @@ begin
 				if depth < depth_out_latch then
 					depth_wren   <= '1';
 					depth_buf_in <= depth;
-					color_out    <= (r => r, g => g, b => b);
+					color_out    <= (r => X"FF", g => X"00", b => X"00");
 
 					put_pixel_out_next <= '1';
 				else
