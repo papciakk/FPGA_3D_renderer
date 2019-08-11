@@ -6,16 +6,18 @@ use work.definitions.all;
 
 package config is
 
+	constant MODE_320_240 : boolean := true;
+
 	constant MAIN_CLK_MHZ : integer := 50;
 
 	constant BITS_PER_PIXEL : integer := 24;
 	constant DEPTH_BITS     : integer := 16;
 
 	constant TILE_RES_X : integer := 160;
-	constant TILE_RES_Y : integer := 160;
+	constant TILE_RES_Y : integer := 120;
 
-	constant FULLSCREEN_RES_X : integer := 640;
-	constant FULLSCREEN_RES_Y : integer := 480;
+	constant FULLSCREEN_RES_X : integer := sel(MODE_320_240, 320, 640);
+	constant FULLSCREEN_RES_Y : integer := sel(MODE_320_240, 240, 480);
 	
 	----------------------------------------------------------------
 

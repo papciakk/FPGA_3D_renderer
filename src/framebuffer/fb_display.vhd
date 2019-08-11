@@ -64,14 +64,18 @@ architecture rtl of fb_display is
 	signal fb_window_y0 : std_logic_vector(15 downto 0);
 	signal fb_window_x1 : std_logic_vector(15 downto 0);
 	signal fb_window_y1 : std_logic_vector(15 downto 0);
+	
+	constant CNT_X_LIMIT : integer := sel(MODE_320_240, TILE_RES_X * 2, TILE_RES_X);
+	constant CNT_Y_LIMIT : integer := sel(MODE_320_240, TILE_RES_Y * 2 , TILE_RES_Y);
+	
 begin
-	posx_out <= cntx;
-	posy_out <= cnty;
+	posx_out <= sel(MODE_320_240, shift_right(cntx, 1), cntx);
+	posy_out <= sel(MODE_320_240, shift_right(cnty, 1), cnty);
 
-	fb_window_x0 <= std_logic_vector(fb_window.x0);
-	fb_window_y0 <= std_logic_vector(fb_window.y0);
-	fb_window_x1 <= std_logic_vector(fb_window.x1);
-	fb_window_y1 <= std_logic_vector(fb_window.y1);
+	fb_window_x0 <= std_logic_vector(sel(MODE_320_240, shift_left(fb_window.x0, 1), fb_window.x0));
+	fb_window_y0 <= std_logic_vector(sel(MODE_320_240, shift_left(fb_window.y0, 1), fb_window.y0));
+	fb_window_x1 <= std_logic_vector(sel(MODE_320_240, shift_left(fb_window.x1, 1) + 1, fb_window.x1));
+	fb_window_y1 <= std_logic_vector(sel(MODE_320_240, shift_left(fb_window.y1, 1) + 1, fb_window.y1));
 
 	process(clk, rst) is
 	begin
@@ -263,8 +267,8 @@ begin
 				end if;
 
 			when st_write_pixel_data =>
-				if cnty_cnt < TILE_RES_Y then
-					if cntx_cnt < TILE_RES_X then
+				if cnty_cnt < CNT_Y_LIMIT then
+					if cntx_cnt < CNT_X_LIMIT then
 						cntx_next <= cntx_cnt;
 						cnty_next <= cnty_cnt;
 
