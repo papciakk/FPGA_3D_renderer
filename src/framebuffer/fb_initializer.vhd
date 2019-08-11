@@ -153,7 +153,7 @@ begin
 
 	process(clk, rst) is
 	begin
-		if not rst then
+		if rst then
 			done  <= '0';
 			state <= st_idle;
 		elsif rising_edge(clk) then

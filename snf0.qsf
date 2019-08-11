@@ -233,6 +233,7 @@ set_global_assignment -name ROUTER_TIMING_OPTIMIZATION_LEVEL MAXIMUM
 set_global_assignment -name PHYSICAL_SYNTHESIS_REGISTER_DUPLICATION ON
 set_global_assignment -name PHYSICAL_SYNTHESIS_COMBO_LOGIC ON
 set_global_assignment -name ENABLE_BENEFICIAL_SKEW_OPTIMIZATION OFF
+set_global_assignment -name VHDL_FILE src/framebuffer/fb_driver.vhd
 set_global_assignment -name VHDL_FILE src/snf0.vhd
 set_global_assignment -name VHDL_FILE src/renderer/renderer_inc.vhd
 set_global_assignment -name VHDL_FILE src/uart/uart_transmitter.vhd

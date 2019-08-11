@@ -6,7 +6,7 @@ use work.definitions.all;
 
 package config is
 
-	constant MODE_320_240 : boolean := true;
+	constant MODE_320_240 : boolean := false;
 
 	constant MAIN_CLK_MHZ : integer := 50;
 

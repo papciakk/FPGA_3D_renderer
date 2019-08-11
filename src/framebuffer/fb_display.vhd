@@ -79,7 +79,7 @@ begin
 
 	process(clk, rst) is
 	begin
-		if rst = '0' then
+		if rst then
 			state <= st_start;
 		elsif rising_edge(clk) then
 			write_done    <= write_done_next;
