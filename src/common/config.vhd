@@ -11,8 +11,8 @@ package config is
 	constant BITS_PER_PIXEL : integer := 24;
 	constant DEPTH_BITS     : integer := 16;
 
-	constant TILE_RES_X : integer := 128;
-	constant TILE_RES_Y : integer := 96;
+	constant TILE_RES_X : integer := 160;
+	constant TILE_RES_Y : integer := 160;
 
 	constant FULLSCREEN_RES_X : integer := 640;
 	constant FULLSCREEN_RES_Y : integer := 480;

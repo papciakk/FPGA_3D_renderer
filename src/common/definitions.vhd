@@ -16,6 +16,11 @@ package definitions is
 		x0, x1, y0, y1 : uint16_t;
 	end record;
 
+	type rect_attr_t is record
+		r : rect_t;
+		x, y : uint16_t;
+	end record;
+
 	type srect_t is record
 		x0, x1, y0, y1 : int16_t;
 	end record;

@@ -140,6 +140,12 @@ architecture behavioral of snf0 is
 	signal tile_num_ready       : std_logic;
 
 	signal fb_disp_window_rect : rect_t;
+	signal tile_num_out        : integer;
+	signal state_tile_next     : state_tile_type;
+	signal tile_num_next       : integer;
+	signal tile_num_ready_next : std_logic;
+	signal tile_num_out_next   : integer;
+	signal xxx : std_logic;
 
 begin
 
@@ -189,7 +195,7 @@ begin
 			color_in      => screen_pixel_color,
 			------------------------------------
 			fb_window     => fb_disp_window_rect,
-			clk           => main_clk,
+			clk           => CLK_50,
 			rst           => rst,
 			start_write   => fb_disp_start_write,
 			write_done    => fb_disp_write_done,
@@ -205,7 +211,7 @@ begin
 
 	mesh_renderer0 : entity work.mesh_renderer
 		port map(
-			clk                => main_clk,
+			clk                => CLK_50,
 			rst                => not rst,
 			-------------------------------
 			rot                => rot,
@@ -221,17 +227,17 @@ begin
 			-------------------------------
 			task_request       => tile_num_request,
 			task_ready         => tile_num_ready,
-			task_tile_num      => tile_num
+			task_tile_num      => tile_num_out
 		);
 
 	led_blinker0 : entity work.led_blinker
 		generic map(
-			frequency => 1.0            -- Hz
+			frequency => 50.0            -- Hz
 		)
 		port map(
 			clk50 => CLK_50,
 			rst   => not rst,
-			led   => LED(1)
+			led   => xxx
 		);
 
 	--	measurment0 : entity work.single_measurment
@@ -275,12 +281,20 @@ begin
 	--		);
 
 	LED(0) <= rst;
+	LED(1) <= xxx;
 
-	start_screen_display <= LED(1);
+	start_screen_display <= '1';
 
 	rst <= BTN(0);
+	
+	process(xxx) is
+	begin
+		if rising_edge(xxx) then
+			rot.x <= sel(rot.x > 360, int16(1), rot.x + 1);
+		end if;
+	end process;
 
-	fb_clk        <= fb_initializer_clk when fb_initializer_enabled = '1' else main_clk;
+	fb_clk        <= fb_initializer_clk when fb_initializer_enabled = '1' else CLK_50;
 	fb_data_write <= fb_initializer_data_write when fb_initializer_enabled = '1' else fb_disp_data_write;
 	fb_op_start   <= fb_initializer_op_start when fb_initializer_enabled = '1' else fb_disp_op_start;
 	fb_op         <= fb_initializer_op when fb_initializer_enabled = '1' else fb_disp_op;
@@ -323,41 +337,53 @@ begin
 		end if;
 	end process;
 
-	process(main_clk, rst) is
+	process(CLK_50, rst) is
 	begin
 		if not rst then
 			state_tile <= st_start;
-		elsif rising_edge(main_clk) then
-			case state_tile is
-
-				when st_start =>
-					tile_num       <= 0;
-					tile_num_ready <= '0';
-					state_tile     <= st_idle;
-
-				when st_idle =>
-					tile_num_ready <= '0';
-					if tile_num_request then
-						state_tile <= st_next_tile;
-					else
-						state_tile <= st_idle;
-					end if;
-
-				when st_next_tile =>
-					if tile_num <= TILES_CNT - 2 then
-						tile_num <= tile_num + 1;
-					else
-						tile_num <= 0;
-					end if;
-
-					tile_num_ready <= '1';
-
-					rot.x <= sel(rot.x > 360, int16(1), rot.x + 1);
-
-					state_tile <= st_idle;
-
-			end case;
+		elsif rising_edge(CLK_50) then
+			tile_num       <= tile_num_next;
+			tile_num_ready <= tile_num_ready_next;
+			tile_num_out   <= tile_num_out_next;
+			state_tile     <= state_tile_next;
 		end if;
+	end process;
+
+	process(all) is
+	begin
+		tile_num_next       <= tile_num;
+		tile_num_ready_next <= tile_num_ready;
+		tile_num_out_next   <= tile_num_out;
+		state_tile_next     <= state_tile;
+		case state_tile is
+
+			when st_start =>
+				tile_num_next       <= 0;
+				tile_num_ready_next <= '0';
+				tile_num_out_next   <= 0;
+				state_tile_next     <= st_idle;
+
+			when st_idle =>
+				if tile_num_request then
+					tile_num_out_next   <= tile_num;
+					tile_num_ready_next <= '1';
+					state_tile_next     <= st_next_tile;
+				else
+					tile_num_ready_next <= '0';
+					state_tile_next     <= st_idle;
+				end if;
+
+			when st_next_tile =>
+				tile_num_ready_next <= '0';
+				if tile_num < TILES_CNT - 1 then
+					tile_num_next <= tile_num + 1;
+				else
+					tile_num_next <= 0;
+				end if;
+				
+				state_tile_next <= st_idle;
+
+		end case;
 	end process;
 
 end architecture;

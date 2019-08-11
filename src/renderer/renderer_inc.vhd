@@ -34,8 +34,8 @@ package body renderer_inc is
 		return (
 			x0 => maximum2(triangle_bb.x0, int16(tile_bb.x0)),
 			y0 => maximum2(triangle_bb.y0, int16(tile_bb.y0)),
-			x1 => minimum2(triangle_bb.x1, int16(tile_bb.x1)),
-			y1 => minimum2(triangle_bb.y1, int16(tile_bb.y1))
+			x1 => minimum2(triangle_bb.x1, int16(tile_bb.x1) + 1),
+			y1 => minimum2(triangle_bb.y1, int16(tile_bb.y1) + 1)
 		);
 	end function;
 
@@ -45,6 +45,12 @@ package body renderer_inc is
 			get_triangle_bounding_box(triangle),
 			tile_rect
 		);
+--		return (
+--			x0 => int16(tile_rect.x0),
+--			x1 => int16(tile_rect.x1),
+--			y0 => int16(tile_rect.y0),
+--			y1 => int16(tile_rect.y1)
+--		);
 	end function;
 	
 	function edge_function(a, b, c : point2d_t) return int16_t is

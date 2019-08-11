@@ -126,9 +126,9 @@ architecture rtl of tile_renderer is
 
 	signal render_rect, render_rect_next : srect_t;
 
-	signal start_rendering, start_rendering_next : std_logic := '0';
-	signal trianglegen_ready                     : std_logic;
-	signal ready_out_next                        : std_logic;
+	signal start_rasterizer, start_rasterizer_next : std_logic := '0';
+	signal rasterizer_ready                        : std_logic;
+	signal ready_out_next                          : std_logic;
 
 	signal attr0, attr0_next : vertex_attr_t;
 	signal attr1, attr1_next : vertex_attr_t;
@@ -159,19 +159,18 @@ architecture rtl of tile_renderer is
 	--------------------------------------------
 
 	type state_type is (
-		st_start, st_idle,
+		st_start, st_idle, st_get_bb, st_next_triangle,
 		st_prepare_triangle_vertices_request_sincos_x,
 		st_get_sincos_x_request_sincos_y, st_get_sincos_y_request_sincos_z_calc_rot_x,
 		st_get_sincos_z_calc_rot_y, st_calc_rotz,
 		st_calc_scale,
 		st_rescale_attributes,
-		st_calc_lighting_for_triangle, st_rendering_misc,
-		st_rendering_task_wait, st_increment_triangle_id,
+		st_calc_lighting, st_rasterizer_wait,
 		st_cast_to_32bit, st_cast_to_16bit
 	);
 	signal state, state_next : state_type := st_start;
-
 begin
+
 	sin_cos_0 : entity work.sin_cos
 		port map(
 			clk     => clk,
@@ -190,8 +189,8 @@ begin
 			put_pixel_out => trianglegen_put_pixel,
 			posx_out      => trianglegen_posx_out,
 			posy_out      => trianglegen_posy_out,
-			start_in      => start_rendering,
-			ready_out     => trianglegen_ready,
+			start_in      => start_rasterizer,
+			ready_out     => rasterizer_ready,
 			area_in       => area,
 			depths_in     => depths,
 			colors_in     => colors,
@@ -206,18 +205,18 @@ begin
 		if rst then
 			state <= st_start;
 		elsif rising_edge(clk) then
-			state           <= state_next;
-			triangle_id     <= triangle_id_next;
-			render_rect     <= render_rect_next;
-			start_rendering <= start_rendering_next;
-			triangle        <= triangle_next;
-			ready_out       <= ready_out_next;
-			area            <= area_next;
-			depths          <= depths_next;
-			colors          <= colors_next;
-			attr0           <= attr0_next;
-			attr1           <= attr1_next;
-			attr2           <= attr2_next;
+			state               <= state_next;
+			triangle_id      <= triangle_id_next;
+			render_rect      <= render_rect_next;
+			ready_out        <= ready_out_next;
+			attr0            <= attr0_next;
+			attr1            <= attr1_next;
+			attr2            <= attr2_next;
+			start_rasterizer <= start_rasterizer_next;
+			triangle         <= triangle_next;
+			area             <= area_next;
+			colors           <= colors_next;
+			depths           <= depths_next;
 
 			angle <= angle_next;
 			sinx  <= sinx_next;
@@ -229,26 +228,25 @@ begin
 			v0_32 <= v0_32_next;
 			v1_32 <= v1_32_next;
 			v2_32 <= v2_32_next;
-
 		end if;
 	end process;
 
 	process(all) is
-		variable area_v     : int16_t;
 		variable triangle_v : triangle2d_t;
+		variable area_v     : int16_t;
 	begin
-		state_next           <= state;
-		triangle_id_next     <= triangle_id;
-		render_rect_next     <= render_rect;
-		start_rendering_next <= start_rendering;
-		triangle_next        <= triangle;
-		ready_out_next       <= ready_out;
-		area_next            <= area;
-		depths_next          <= depths;
-		colors_next          <= colors;
-		attr0_next           <= attr0;
-		attr1_next           <= attr1;
-		attr2_next           <= attr2;
+		state_next               <= state;
+		triangle_id_next      <= triangle_id;
+		render_rect_next      <= render_rect;
+		ready_out_next        <= ready_out;
+		attr0_next            <= attr0;
+		attr1_next            <= attr1;
+		attr2_next            <= attr2;
+		start_rasterizer_next <= start_rasterizer;
+		triangle_next         <= triangle;
+		area_next             <= area;
+		colors_next           <= colors;
+		depths_next           <= depths;
 
 		angle_next <= angle;
 		sinx_next  <= sinx;
@@ -262,25 +260,26 @@ begin
 		v2_32_next <= v2_32;
 
 		case state is
+
 			when st_start =>
-				ready_out_next       <= '0';
-				triangle_id_next     <= 0;
-				start_rendering_next <= '0';
-				state_next           <= st_idle;
+				triangle_id_next <= 0;
+				ready_out_next   <= '0';
+				state_next          <= st_idle;
 
 			when st_idle =>
-				ready_out_next <= '0';
+				ready_out_next   <= '0';
+				triangle_id_next <= 0;
 				if start_in then
-					triangle_id_next <= 0;
-					state_next       <= st_prepare_triangle_vertices_request_sincos_x;
+					state_next <= st_prepare_triangle_vertices_request_sincos_x;
 				else
 					state_next <= st_idle;
 				end if;
 
 			when st_prepare_triangle_vertices_request_sincos_x =>
-				attr0_next <= vertices(to_integer(indices(triangle_id).a));
-				attr1_next <= vertices(to_integer(indices(triangle_id).b));
-				attr2_next <= vertices(to_integer(indices(triangle_id).c));
+				ready_out_next <= '0';
+				attr0_next     <= vertices(to_integer(indices(triangle_id).a));
+				attr1_next     <= vertices(to_integer(indices(triangle_id).b));
+				attr2_next     <= vertices(to_integer(indices(triangle_id).c));
 
 				angle_next <= rot.x;
 
@@ -347,62 +346,56 @@ begin
 				attr1_next.pos <= rescale_vertices(attr1.pos);
 				attr2_next.pos <= rescale_vertices(attr2.pos);
 
-				state_next <= st_calc_lighting_for_triangle;
+				state_next <= st_get_bb;
 
-			when st_calc_lighting_for_triangle =>
+			when st_get_bb =>
+				ready_out_next <= '0';
 
-				-- project to screen space
-				triangle_v    := (
-					(x => attr0.pos.x, y => attr0.pos.y),
-					(x => attr1.pos.x, y => attr1.pos.y),
-					(x => attr2.pos.x, y => attr2.pos.y)
-				);
-				triangle_next <= triangle_v;
-
-				-- calculate rendering bounding box
-
-				render_rect_next <= get_current_rendering_bounding_box(triangle_v, tile_rect_in);
-
-				-- calc area
-				area_v    := edge_function(attr0.pos, attr1.pos, attr2.pos);
-				area_next <= area_v;
-
+				area_v := edge_function(attr0.pos, attr1.pos, attr2.pos);
 				if area_v < 0 then      -- backface culling
-					state_next <= st_increment_triangle_id;
+					state_next <= st_next_triangle;
 				else
-					colors_next <= (
-						calc_lighting_for_vertex(attr0),
-						calc_lighting_for_vertex(attr1),
-						calc_lighting_for_vertex(attr2)
+					triangle_v       := (
+						(x => attr0.pos.x, y => attr0.pos.y),
+						(x => attr1.pos.x, y => attr1.pos.y),
+						(x => attr2.pos.x, y => attr2.pos.y)
 					);
-					state_next  <= st_rendering_misc;
+					triangle_next    <= triangle_v;
+					area_next        <= area_v;
+					depths_next      <= point3d(attr0.pos.y, attr1.pos.y, attr2.pos.y);
+					render_rect_next <= get_current_rendering_bounding_box(triangle_v, tile_rect_in);
+
+					state_next <= st_calc_lighting;
 				end if;
 
-			when st_rendering_misc =>
-				depths_next <= point3d(attr0.pos.y, attr1.pos.y, attr2.pos.y);
+			when st_calc_lighting =>
+				colors_next <= (
+					calc_lighting_for_vertex(attr0),
+					calc_lighting_for_vertex(attr1),
+					calc_lighting_for_vertex(attr2)
+				);
 
-				ready_out_next       <= '0';
-				start_rendering_next <= '1';
-				state_next           <= st_rendering_task_wait;
+				start_rasterizer_next <= '1';
 
-			when st_rendering_task_wait =>
-				ready_out_next       <= '0';
-				start_rendering_next <= '0';
+				state_next <= st_rasterizer_wait;
 
-				if trianglegen_ready then
-					state_next <= st_increment_triangle_id;
+			when st_rasterizer_wait =>
+				ready_out_next        <= '0';
+				start_rasterizer_next <= '0';
+				if rasterizer_ready then
+					state_next <= st_next_triangle;
 				else
-					state_next <= st_rendering_task_wait;
+					state_next <= st_rasterizer_wait;
 				end if;
 
-			when st_increment_triangle_id =>
-				if triangle_id < indices'length then
-					triangle_id_next     <= triangle_id + 1;
-					start_rendering_next <= '0';
-					state_next           <= st_prepare_triangle_vertices_request_sincos_x;
+			when st_next_triangle =>
+				if triangle_id < indices'length - 1 then
+					triangle_id_next <= triangle_id + 1;
+					state_next          <= st_prepare_triangle_vertices_request_sincos_x;
 				else
-					ready_out_next <= '1';
-					state_next     <= st_start;
+					triangle_id_next <= 0;
+					ready_out_next   <= '1';
+					state_next          <= st_idle;
 				end if;
 
 		end case;
