@@ -95,16 +95,16 @@ architecture behavioral of snf0 is
 	signal tile_num_next       : integer;
 	signal tile_num_ready_next : std_logic;
 	signal tile_num_out_next   : integer;
-	signal xxx                 : std_logic;
+	signal led_blink           : std_logic;
 
 	signal fb_disp_start_write : std_logic;
 	signal fb_disp_write_done  : std_logic;
 	signal fb_initializer_clk  : std_logic;
 	signal posx_out, posy_out  : uint16_t;
 	signal color_in            : color_t;
-	signal rot_cnt : integer;
-	signal rot_cnt_next : integer;
-	signal rot_next : point3d_t;
+	signal rot_cnt             : integer;
+	signal rot_cnt_next        : integer;
+	signal rot_next            : point3d_t;
 
 begin
 
@@ -167,12 +167,12 @@ begin
 
 	led_blinker0 : entity work.led_blinker
 		generic map(
-			frequency => 50.0           -- Hz
+			frequency => 2.0            -- Hz
 		)
 		port map(
 			clk50 => CLK_50,
 			rst   => rst,
-			led   => xxx
+			led   => led_blink
 		);
 
 	--	measurment0 : entity work.single_measurment
@@ -216,18 +216,11 @@ begin
 	--		);
 
 	LED(0) <= rst;
-	LED(1) <= xxx;
+	LED(1) <= led_blink;
 
 	start_screen_display <= '1';
 
 	rst <= not BTN(0);
-
-	process(xxx) is
-	begin
-		if rising_edge(xxx) then
-			--			rot.x <= sel(rot.x > 360, int16(1), rot.x + 1);
-		end if;
-	end process;
 
 	process(main_clk, rst) is
 	begin
@@ -238,8 +231,7 @@ begin
 			tile_num_ready <= tile_num_ready_next;
 			tile_num_out   <= tile_num_out_next;
 			state_tile     <= state_tile_next;
-			rot_cnt <= rot_cnt_next;
-			rot <= rot_next;
+			rot            <= rot_next;
 		end if;
 	end process;
 
@@ -249,16 +241,14 @@ begin
 		tile_num_ready_next <= tile_num_ready;
 		tile_num_out_next   <= tile_num_out;
 		state_tile_next     <= state_tile;
-		rot_next <= rot;
-		rot_cnt_next <= rot_cnt;
+		rot_next            <= rot;
 		case state_tile is
 
 			when st_start =>
 				tile_num_next       <= 0;
 				tile_num_ready_next <= '0';
 				tile_num_out_next   <= 0;
-				rot_cnt_next <= 0;
-				rot_next <= (others => int16(0));
+				rot_next            <= (others => int16(0));
 				state_tile_next     <= st_idle;
 
 			when st_idle =>
@@ -276,12 +266,7 @@ begin
 				if tile_num < TILES_CNT then
 					tile_num_next <= tile_num + 1;
 				else
-					--if rot_cnt >= 20 then
-						rot_next.x <= sel(rot.x > 359, int16(0), rot.x + 1);
-					--	rot_cnt_next <= 0;
-					--else
-						--rot_cnt_next <= rot_cnt + 1;
-					--end if;
+					rot_next.x    <= sel(rot.x = 359, int16(0), rot.x + 1);
 					tile_num_next <= 0;
 				end if;
 
