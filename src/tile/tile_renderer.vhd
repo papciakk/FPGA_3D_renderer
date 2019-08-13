@@ -117,7 +117,7 @@ architecture rtl of tile_renderer is
 		return (
 			x => shift_right(vertex.x, 7) + HALF_FULLSCREEN_RES_X,
 			y => shift_right(vertex.y, 7) + HALF_FULLSCREEN_RES_Y,
-			z => shift_right(vertex.z, 5)
+			z => shift_right(vertex.z, 4)
 		);
 	end function;
 
@@ -140,10 +140,9 @@ architecture rtl of tile_renderer is
 
 	--------------------------------------------
 
-	signal sin : int16_t;
-	signal cos : int16_t;
-
-	signal angle, angle_next : int16_t;
+	signal sine   : int16_t;
+	signal cosine : int16_t;
+	signal angle  : int16_t;
 
 	signal sinx, sinx_next : int16_t;
 	signal cosx, cosx_next : int16_t;
@@ -173,11 +172,9 @@ begin
 
 	sin_cos_0 : entity work.sin_cos
 		port map(
-			clk     => clk,
-			rst     => rst,
-			angle   => angle,
-			sin_out => sin,
-			cos_out => cos
+			angle  => angle,
+			sine   => sine,
+			cosine => cosine
 		);
 
 	triangle_rasterizer0 : entity work.triangle_rasterizer
@@ -205,7 +202,7 @@ begin
 		if rst then
 			state <= st_start;
 		elsif rising_edge(clk) then
-			state               <= state_next;
+			state            <= state_next;
 			triangle_id      <= triangle_id_next;
 			render_rect      <= render_rect_next;
 			ready_out        <= ready_out_next;
@@ -218,7 +215,6 @@ begin
 			colors           <= colors_next;
 			depths           <= depths_next;
 
-			angle <= angle_next;
 			sinx  <= sinx_next;
 			cosx  <= cosx_next;
 			siny  <= siny_next;
@@ -235,7 +231,7 @@ begin
 		variable triangle_v : triangle2d_t;
 		variable area_v     : int16_t;
 	begin
-		state_next               <= state;
+		state_next            <= state;
 		triangle_id_next      <= triangle_id;
 		render_rect_next      <= render_rect;
 		ready_out_next        <= ready_out;
@@ -248,7 +244,6 @@ begin
 		colors_next           <= colors;
 		depths_next           <= depths;
 
-		angle_next <= angle;
 		sinx_next  <= sinx;
 		cosx_next  <= cosx;
 		siny_next  <= siny;
@@ -262,12 +257,12 @@ begin
 		case state is
 
 			when st_start =>
-				triangle_id_next <= 0;
+				triangle_id_next <= 0;start_rasterizer_next <= '0';
 				ready_out_next   <= '0';
-				state_next          <= st_idle;
+				state_next       <= st_idle;
 
 			when st_idle =>
-				ready_out_next   <= '0';
+				ready_out_next   <= '0';start_rasterizer_next <= '0';
 				triangle_id_next <= 0;
 				if start_in then
 					state_next <= st_prepare_triangle_vertices_request_sincos_x;
@@ -276,72 +271,71 @@ begin
 				end if;
 
 			when st_prepare_triangle_vertices_request_sincos_x =>
-				ready_out_next <= '0';
+				ready_out_next <= '0';start_rasterizer_next <= '0';
 				attr0_next     <= vertices(to_integer(indices(triangle_id).a));
 				attr1_next     <= vertices(to_integer(indices(triangle_id).b));
 				attr2_next     <= vertices(to_integer(indices(triangle_id).c));
 
-				angle_next <= rot.x;
-
 				state_next <= st_get_sincos_x_request_sincos_y;
 
 			when st_get_sincos_x_request_sincos_y =>
-				sinx_next  <= sin;
-				cosx_next  <= cos;
-				angle_next <= rot.y;
+				angle <= rot.x;start_rasterizer_next <= '0';
 
-				state_next <= st_get_sincos_y_request_sincos_z_calc_rot_x;
-
-			when st_get_sincos_y_request_sincos_z_calc_rot_x =>
-				siny_next  <= sin;
-				cosy_next  <= cos;
-				angle_next <= rot.z;
-
-				attr0_next.pos <= calc_rotx(sinx, cosx, attr0.pos);
-				attr1_next.pos <= calc_rotx(sinx, cosx, attr1.pos);
-				attr2_next.pos <= calc_rotx(sinx, cosx, attr2.pos);
-
-				state_next <= st_get_sincos_z_calc_rot_y;
-
-			when st_get_sincos_z_calc_rot_y =>
-				sinz_next <= sin;
-				cosz_next <= cos;
-
-				attr0_next.pos <= calc_roty(siny, cosy, attr0.pos);
-				attr1_next.pos <= calc_roty(siny, cosy, attr1.pos);
-				attr2_next.pos <= calc_roty(siny, cosy, attr2.pos);
-
-				state_next <= st_calc_rotz;
-
-			when st_calc_rotz =>
-				attr0_next.pos <= calc_rotz(sinz, cosz, attr0.pos);
-				attr1_next.pos <= calc_rotz(sinz, cosz, attr1.pos);
-				attr2_next.pos <= calc_rotz(sinz, cosz, attr2.pos);
-
-				state_next <= st_cast_to_32bit;
-
-			when st_cast_to_32bit =>
-				v0_32_next <= point3d_32(attr0.pos);
-				v1_32_next <= point3d_32(attr1.pos);
-				v2_32_next <= point3d_32(attr2.pos);
-
-				state_next <= st_calc_scale;
-
-			when st_calc_scale =>
-				v0_32_next <= calc_scale(scale, v0_32);
-				v1_32_next <= calc_scale(scale, v1_32);
-				v2_32_next <= calc_scale(scale, v2_32);
-
-				state_next <= st_cast_to_16bit;
-
-			when st_cast_to_16bit =>
-				attr0_next.pos <= cast_to_16bit(v0_32);
-				attr1_next.pos <= cast_to_16bit(v1_32);
-				attr2_next.pos <= cast_to_16bit(v2_32);
+				attr0_next.pos <= calc_rotx(sine, cosine, attr0.pos);
+				attr1_next.pos <= calc_rotx(sine, cosine, attr1.pos);
+				attr2_next.pos <= calc_rotx(sine, cosine, attr2.pos);
 
 				state_next <= st_rescale_attributes;
 
-			when st_rescale_attributes =>
+			--			when st_get_sincos_y_request_sincos_z_calc_rot_x =>
+			--				siny_next  <= sine;
+			--				cosy_next  <= cosine;
+			--				angle_next <= rot.z;
+			--
+			--				
+			--
+			--				state_next <= st_get_sincos_z_calc_rot_y;
+			--
+			--			when st_get_sincos_z_calc_rot_y =>
+			--				sinz_next <= sine;
+			--				cosz_next <= cosine;
+			--
+			--				attr0_next.pos <= calc_roty(siny, cosy, attr0.pos);
+			--				attr1_next.pos <= calc_roty(siny, cosy, attr1.pos);
+			--				attr2_next.pos <= calc_roty(siny, cosy, attr2.pos);
+			--
+			--				state_next <= st_calc_rotz;
+			--
+			--			when st_calc_rotz =>
+			--				attr0_next.pos <= calc_rotz(sinz, cosz, attr0.pos);
+			--				attr1_next.pos <= calc_rotz(sinz, cosz, attr1.pos);
+			--				attr2_next.pos <= calc_rotz(sinz, cosz, attr2.pos);
+			--
+			--				state_next <= st_cast_to_32bit;
+			--
+			--			when st_cast_to_32bit =>
+			--				v0_32_next <= point3d_32(attr0.pos);
+			--				v1_32_next <= point3d_32(attr1.pos);
+			--				v2_32_next <= point3d_32(attr2.pos);
+			--
+			--				state_next <= st_calc_scale;
+			--
+			--			when st_calc_scale =>
+			--				v0_32_next <= calc_scale(scale, v0_32);
+			--				v1_32_next <= calc_scale(scale, v1_32);
+			--				v2_32_next <= calc_scale(scale, v2_32);
+			--
+			--				state_next <= st_cast_to_16bit;
+			--
+			--			when st_cast_to_16bit =>
+			--				attr0_next.pos <= cast_to_16bit(v0_32);
+			--				attr1_next.pos <= cast_to_16bit(v1_32);
+			--				attr2_next.pos <= cast_to_16bit(v2_32);
+			--
+			--				state_next <= st_rescale_attributes;
+
+		when st_rescale_attributes =>
+			start_rasterizer_next <= '0';
 				attr0_next.pos <= rescale_vertices(attr0.pos);
 				attr1_next.pos <= rescale_vertices(attr1.pos);
 				attr2_next.pos <= rescale_vertices(attr2.pos);
@@ -350,6 +344,7 @@ begin
 
 			when st_get_bb =>
 				ready_out_next <= '0';
+				start_rasterizer_next <= '0';
 
 				area_v := edge_function(attr0.pos, attr1.pos, attr2.pos);
 				if area_v < 0 then      -- backface culling
@@ -362,7 +357,7 @@ begin
 					);
 					triangle_next    <= triangle_v;
 					area_next        <= area_v;
-					depths_next      <= point3d(attr0.pos.y, attr1.pos.y, attr2.pos.y);
+					depths_next      <= point3d(attr0.pos.z, attr1.pos.z, attr2.pos.z);
 					render_rect_next <= get_current_rendering_bounding_box(triangle_v, tile_rect_in);
 
 					state_next <= st_calc_lighting;
@@ -389,14 +384,27 @@ begin
 				end if;
 
 			when st_next_triangle =>
+				start_rasterizer_next <= '0';
 				if triangle_id < indices'length - 1 then
 					triangle_id_next <= triangle_id + 1;
-					state_next          <= st_prepare_triangle_vertices_request_sincos_x;
+					state_next       <= st_prepare_triangle_vertices_request_sincos_x;
 				else
 					triangle_id_next <= 0;
 					ready_out_next   <= '1';
-					state_next          <= st_idle;
+					state_next       <= st_idle;
 				end if;
+			when st_get_sincos_y_request_sincos_z_calc_rot_x =>
+				null;
+			when st_get_sincos_z_calc_rot_y =>
+				null;
+			when st_calc_rotz =>
+				null;
+			when st_calc_scale =>
+				null;
+			when st_cast_to_32bit =>
+				null;
+			when st_cast_to_16bit =>
+				null;
 
 		end case;
 	end process;

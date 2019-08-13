@@ -102,12 +102,15 @@ architecture behavioral of snf0 is
 	signal fb_initializer_clk  : std_logic;
 	signal posx_out, posy_out  : uint16_t;
 	signal color_in            : color_t;
+	signal rot_cnt : integer;
+	signal rot_cnt_next : integer;
+	signal rot_next : point3d_t;
 
 begin
 
 	pll0 : entity work.pll
 		port map(
-			areset => not rst,
+			areset => rst,
 			inclk0 => CLK_50,
 			c0     => fb_initializer_clk,
 			c1     => main_clk,
@@ -117,7 +120,7 @@ begin
 	mesh_renderer0 : entity work.mesh_renderer
 		port map(
 			clk                => main_clk,
-			rst                => not rst,
+			rst                => rst,
 			-------------------------------
 			screen_ready       => framebuffer_ready and start_screen_display,
 			screen_start_write => fb_disp_start_write,
@@ -139,7 +142,7 @@ begin
 		port map(
 			display_clk     => main_clk,
 			initializer_clk => fb_initializer_clk,
-			rst             => not rst,
+			rst             => rst,
 			-------------------------------
 			start_write     => fb_disp_start_write,
 			write_done      => fb_disp_write_done,
@@ -168,14 +171,14 @@ begin
 		)
 		port map(
 			clk50 => CLK_50,
-			rst   => not rst,
+			rst   => rst,
 			led   => xxx
 		);
 
 	--	measurment0 : entity work.single_measurment
 	--		port map(
 	--			clk   => CLK_50,
-	--			rst   => not rst,
+	--			rst   => rst,
 	--			run   => measurment0_run,
 	--			value => measurment0_value,
 	--			done  => measurment0_done
@@ -185,7 +188,7 @@ begin
 	--		port map(
 	--			send     => measurment_send,
 	--			clk      => CLK_50,
-	--			rst      => not rst,
+	--			rst      => rst,
 	--			uart_txd => UART_TXD,
 	--			val      => printf0_val
 	--		);
@@ -193,7 +196,7 @@ begin
 	--	keyboard_inputs_0 : entity work.keyboard_inputs
 	--		port map(
 	--			clk      => CLK_50,
-	--			rst      => not rst,
+	--			rst      => rst,
 	--			ps2_clk  => PS2_CLK,
 	--			ps2_data => PS2_DATA,
 	--			keys      => key
@@ -206,7 +209,7 @@ begin
 	--		)
 	--		port map(
 	--			input_clk => input_clk,
-	--			rst       => not rst,
+	--			rst       => rst,
 	--			keys       => key,
 	--			rot       => rot,
 	--			scale     => scale
@@ -217,24 +220,26 @@ begin
 
 	start_screen_display <= '1';
 
-	rst <= BTN(0);
+	rst <= not BTN(0);
 
 	process(xxx) is
 	begin
 		if rising_edge(xxx) then
-			rot.x <= sel(rot.x > 360, int16(1), rot.x + 1);
+			--			rot.x <= sel(rot.x > 360, int16(1), rot.x + 1);
 		end if;
 	end process;
 
-	process(CLK_50, rst) is
+	process(main_clk, rst) is
 	begin
-		if not rst then
+		if rst then
 			state_tile <= st_start;
-		elsif rising_edge(CLK_50) then
+		elsif rising_edge(main_clk) then
 			tile_num       <= tile_num_next;
 			tile_num_ready <= tile_num_ready_next;
 			tile_num_out   <= tile_num_out_next;
 			state_tile     <= state_tile_next;
+			rot_cnt <= rot_cnt_next;
+			rot <= rot_next;
 		end if;
 	end process;
 
@@ -244,12 +249,16 @@ begin
 		tile_num_ready_next <= tile_num_ready;
 		tile_num_out_next   <= tile_num_out;
 		state_tile_next     <= state_tile;
+		rot_next <= rot;
+		rot_cnt_next <= rot_cnt;
 		case state_tile is
 
 			when st_start =>
 				tile_num_next       <= 0;
 				tile_num_ready_next <= '0';
 				tile_num_out_next   <= 0;
+				rot_cnt_next <= 0;
+				rot_next <= (others => int16(0));
 				state_tile_next     <= st_idle;
 
 			when st_idle =>
@@ -264,9 +273,15 @@ begin
 
 			when st_next_tile =>
 				tile_num_ready_next <= '0';
-				if tile_num < TILES_CNT - 1 then
+				if tile_num < TILES_CNT then
 					tile_num_next <= tile_num + 1;
 				else
+					--if rot_cnt >= 20 then
+						rot_next.x <= sel(rot.x > 359, int16(0), rot.x + 1);
+					--	rot_cnt_next <= 0;
+					--else
+						--rot_cnt_next <= rot_cnt + 1;
+					--end if;
 					tile_num_next <= 0;
 				end if;
 

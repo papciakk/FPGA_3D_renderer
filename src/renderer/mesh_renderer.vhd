@@ -179,7 +179,7 @@ begin
 
 				when st_wait_for_framebuffer_init =>
 					if screen_ready then
-						task_request  <= '1';
+						--task_request  <= '1';
 						state_drawing <= st_tilegen_clear;
 					else
 						state_drawing <= st_wait_for_framebuffer_init;
@@ -189,12 +189,12 @@ begin
 
 				when st_tilegen_clear =>
 					tilebuf_clear <= '1';
-					if (current_tile_rect_attr.y(0) = '0' and current_tile_rect_attr.x(0) = '0') or (current_tile_rect_attr.y(0) = '1' and current_tile_rect_attr.x(0) = '1') then
+--					if (current_tile_rect_attr.y(0) = '0' and current_tile_rect_attr.x(0) = '0') or (current_tile_rect_attr.y(0) = '1' and current_tile_rect_attr.x(0) = '1') then
 						
-						clear_color   <= COLOR_BLACK;
-					else
+--						clear_color   <= COLOR_BLACK;
+--					else
 						clear_color   <= COLOR_RED;
-					end if;
+--					end if;
 					state_drawing <= st_tilegen_clear_wait;
 
 				when st_tilegen_clear_wait =>
