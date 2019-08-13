@@ -347,7 +347,7 @@ begin
 				start_rasterizer_next <= '0';
 
 				area_v := edge_function(attr0.pos, attr1.pos, attr2.pos);
-				if area_v < 0 then      -- backface culling
+				if area_v <= 0 then      -- backface culling
 					state_next <= st_next_triangle;
 				else
 					triangle_v       := (
@@ -369,6 +369,23 @@ begin
 					calc_lighting_for_vertex(attr1),
 					calc_lighting_for_vertex(attr2)
 				);
+--				colors_next <= (
+--					(
+--						r => std_logic_vector(attr0.normal.x(15 downto 8)),
+--						g => std_logic_vector(attr0.normal.y(15 downto 8)),
+--						b => std_logic_vector(attr0.normal.z(15 downto 8))
+--					),
+--					(
+--						r => std_logic_vector(attr1.normal.x(15 downto 8)),
+--						g => std_logic_vector(attr1.normal.y(15 downto 8)),
+--						b => std_logic_vector(attr1.normal.z(15 downto 8))
+--					),
+--					(
+--						r => std_logic_vector(attr2.normal.x(15 downto 8)),
+--						g => std_logic_vector(attr2.normal.y(15 downto 8)),
+--						b => std_logic_vector(attr2.normal.z(15 downto 8))
+--					)
+--				);
 
 				start_rasterizer_next <= '1';
 
