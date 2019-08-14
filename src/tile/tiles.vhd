@@ -33,7 +33,7 @@ package body tiles is
 		for yi in 0 to (TILES_Y_CNT - 1) loop
 			for xi in 0 to (TILES_X_CNT - 1) loop
 				r(yi * TILES_X_CNT + xi) := (
-					r => get_tile_rect(xi, yi),
+					rect => get_tile_rect(xi, yi),
 					x => uint16(xi),
 					y => uint16(yi)
 				);

@@ -8,23 +8,22 @@ use work.tiles.all;
 
 entity mesh_renderer is
 	port(
-		clk                : in  std_logic;
-		rst                : in  std_logic;
+		clk                    : in  std_logic;
+		rst                    : in  std_logic;
+		get_rect               : out rect_t;
 		---------------------------------
-		rot                : in  point3d_t;
-		scale              : in  int16_t;
+		rot_in                 : in  point3d_t;
+		scale_in               : in  int16_t;
 		---------------------------------
-		screen_ready       : in  std_logic;
-		screen_start_write : out std_logic;
-		screen_write_done  : in  std_logic;
-		screen_rect        : out rect_t;
-		screen_posx        : in  uint16_t;
-		screen_posy        : in  uint16_t;
-		screen_pixel_color : out color_t;
+		screen_request_out     : out std_logic;
+		screen_ready_in        : in  std_logic;
+		screen_posx_in         : in  uint16_t;
+		screen_posy_in         : in  uint16_t;
+		screen_pixel_color_out : out color_t;
 		---------------------------------
-		task_request       : out std_logic;
-		task_ready         : in  std_logic;
-		task_tile_num      : in  integer
+		task_request_out       : out std_logic;
+		task_ready_in          : in  std_logic;
+		task_tile_num_in       : in  integer
 	);
 end entity mesh_renderer;
 
@@ -36,11 +35,7 @@ architecture rtl of mesh_renderer is
 	signal state, state_next : state_type := st_start;
 
 	type drawing_state_type is (
-		st_start, st_wait_for_framebuffer_init,
-		st_tilegen_clear, st_tilegen_clear_wait,
-		st_tilegen_start_task, st_tilegen_task_wait,
-		st_screen_write, st_screen_wait,
-		st_wait_for_framebuffer_free, st_get_tile_wait
+		st_start, st_tilegen_clear, st_tilegen_clear_wait, st_start_generate_tile, st_generate_tile_wait, st_wait_for_screen_request, st_wait_for_copy_to_screen, st_get_tile_wait
 	);
 	signal state_drawing : drawing_state_type := st_start;
 
@@ -66,16 +61,17 @@ architecture rtl of mesh_renderer is
 	signal tilebuf_clear_done : std_logic;
 	signal current_tile       : integer   := 0;
 	signal clear_color        : color_t;
-	
-	signal current_tile_rect_attr : rect_attr_t; 
+
+	signal current_tile_rect_attr : rect_attr_t;
 begin
+	get_rect <= current_tile_rect;
 
 	tile_buffer0 : entity work.tile_buffer
 		port map(
 			screen_clk        => clk,
-			screen_posx       => screen_posx,
-			screen_posy       => screen_posy,
-			color_out         => screen_pixel_color,
+			screen_posx       => screen_posx_in,
+			screen_posy       => screen_posy_in,
+			color_out         => screen_pixel_color_out,
 			----------
 			tilegen_clk       => clk,
 			tilegen_posx      => posx,
@@ -107,8 +103,8 @@ begin
 			depth_in              => depth_in,
 			depth_out             => depth_out,
 			depth_wren            => depth_wren,
-			rot                   => rot,
-			scale                 => scale
+			rot                   => rot_in,
+			scale                 => scale_in
 		);
 
 	posx <= untransposed_posx - current_tile_rect.x0;
@@ -171,86 +167,71 @@ begin
 			case state_drawing is
 
 				when st_start =>
-					screen_start_write <= '0';
+					screen_request_out <= '0';
 					tilegen_start      <= '0';
-					state_drawing      <= st_wait_for_framebuffer_init;
-					task_request       <= '0';
-					current_tile_rect <= tile_rects(0).r;
-
-				when st_wait_for_framebuffer_init =>
-					if screen_ready then
-						--task_request  <= '1';
-						state_drawing <= st_tilegen_clear;
-					else
-						state_drawing <= st_wait_for_framebuffer_init;
-					end if;
+					task_request_out   <= '0';
+					current_tile_rect  <= tile_rects(0).rect;
+					state_drawing      <= st_tilegen_clear;
 
 				-- CLEAR ON-CHIP BUFFERS
 
 				when st_tilegen_clear =>
 					tilebuf_clear <= '1';
---					if (current_tile_rect_attr.y(0) = '0' and current_tile_rect_attr.x(0) = '0') or (current_tile_rect_attr.y(0) = '1' and current_tile_rect_attr.x(0) = '1') then
-						
---						clear_color   <= COLOR_BLACK;
---					else
-						clear_color   <= COLOR_RED;
---					end if;
+					if (current_tile_rect_attr.y(0) = '0' and current_tile_rect_attr.x(0) = '0') or (current_tile_rect_attr.y(0) = '1' and current_tile_rect_attr.x(0) = '1') then
+						clear_color <= COLOR_BLACK;
+					else
+						clear_color <= COLOR_RED;
+					end if;
 					state_drawing <= st_tilegen_clear_wait;
 
 				when st_tilegen_clear_wait =>
 					tilebuf_clear <= '0';
 					if tilebuf_clear_done then
-						state_drawing <= st_tilegen_start_task;
+						state_drawing <= st_start_generate_tile;
 					else
 						state_drawing <= st_tilegen_clear_wait;
 					end if;
 
 				-- GENERATE TILE
 
-				when st_tilegen_start_task =>
+				when st_start_generate_tile =>
 					tilegen_start <= '1';
-					state_drawing <= st_tilegen_task_wait;
+					state_drawing <= st_generate_tile_wait;
 
-				when st_tilegen_task_wait =>
+				when st_generate_tile_wait =>
 					tilegen_start <= '0';
 					if tilegen_ready then
-						state_drawing <= st_wait_for_framebuffer_free;
+						screen_request_out <= '1';
+						state_drawing      <= st_wait_for_screen_request;
 					else
-						state_drawing <= st_tilegen_task_wait;
+						state_drawing <= st_generate_tile_wait;
 					end if;
 
-				-- DISPLAY IMAGE
-
-				when st_wait_for_framebuffer_free =>
-					if screen_ready then
-						state_drawing <= st_screen_write;
+				when st_wait_for_screen_request =>
+					if screen_ready_in then
+						screen_request_out <= '0';
+						state_drawing      <= st_wait_for_copy_to_screen;
 					else
-						state_drawing <= st_wait_for_framebuffer_free;
+						state_drawing <= st_wait_for_screen_request;
 					end if;
 
-				when st_screen_write =>
-					screen_start_write <= '1';
-					screen_rect        <= current_tile_rect;
-					state_drawing      <= st_screen_wait;
-
-				when st_screen_wait =>
-					screen_start_write <= '0';
-					if screen_write_done then
-						task_request  <= '1';
-						state_drawing <= st_get_tile_wait;
+				when st_wait_for_copy_to_screen =>
+					if screen_ready_in then
+						task_request_out <= '1';
+						state_drawing    <= st_get_tile_wait;
 					else
-						state_drawing <= st_screen_wait;
+						state_drawing <= st_wait_for_copy_to_screen;
 					end if;
 
 				-- GET NEW TASK
 
 				when st_get_tile_wait =>
-					task_request <= '0';
-					if task_ready then
-						current_tile  <= task_tile_num;
-						current_tile_rect_attr <= tile_rects(task_tile_num);
-						current_tile_rect <= tile_rects(task_tile_num).r;
-						state_drawing <= st_tilegen_clear;
+					task_request_out <= '0';
+					if task_ready_in then
+						current_tile           <= task_tile_num_in;
+						current_tile_rect_attr <= tile_rects(task_tile_num_in);
+						current_tile_rect      <= tile_rects(task_tile_num_in).rect;
+						state_drawing          <= st_tilegen_clear;
 					else
 						state_drawing <= st_get_tile_wait;
 					end if;

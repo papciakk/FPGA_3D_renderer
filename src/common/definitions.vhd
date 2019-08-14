@@ -17,7 +17,7 @@ package definitions is
 	end record;
 
 	type rect_attr_t is record
-		r : rect_t;
+		rect : rect_t;
 		x, y : uint16_t;
 	end record;
 
