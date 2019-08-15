@@ -59,16 +59,20 @@ architecture behavioral of snf0 is
 	type state_tile_type is (
 		st_start,
 		st_idle,
+		st_idle2,
 		st_next_tile
 	);
-	signal state_tile : state_tile_type := st_start;
+	signal state_tile, state_tile_next : state_tile_type := st_start;
 
 	type state_screen_type is (
 		st_start, st_wait_for_framebuffer_init, st_idle, st_screen_write, st_screen_wait
 	);
-	signal state_screen : state_screen_type;
+	signal state_screen, state_screen_next : state_screen_type;
 
-	signal main_clk   : std_logic;
+	signal main_clk           : std_logic;
+	signal fb_initializer_clk : std_logic;
+	signal fb_display_clk     : std_logic;
+
 	signal rst        : std_logic;
 	signal pll_locked : std_logic;
 
@@ -76,8 +80,8 @@ architecture behavioral of snf0 is
 
 	-----------------------------------------
 
-	signal framebuffer_initialized : std_logic := '0';
-	signal fb_disp_window_rect     : rect_t;
+	signal framebuffer_initialized                       : std_logic := '0';
+	signal fb_disp_window_rect, fb_disp_window_rect_next : rect_t;
 
 	signal measurment0_run   : std_logic := '0';
 	signal measurment0_value : uint32_t;
@@ -93,31 +97,35 @@ architecture behavioral of snf0 is
 	signal rot_next  : point3d_t;
 	signal scale     : int16_t;
 
-	signal tile_num_out      : integer;
-	signal state_tile_next   : state_tile_type;
-	signal tile_num_next     : integer;
-	signal tile_num_out_next : integer;
+	signal tile_num_next : integer;
 
 	signal led_blink : std_logic;
 
-	signal fb_disp_start_write : std_logic;
-	signal fb_disp_write_done  : std_logic;
-	signal fb_initializer_clk  : std_logic;
-	signal posx_out, posy_out  : uint16_t;
-	signal color_in            : color_t;
+	signal fb_disp_start_write, fb_disp_start_write_next : std_logic;
+	signal fb_disp_write_done                            : std_logic;
+	signal posx_out, posy_out                            : uint16_t;
+	signal color_in                                      : color_t;
 
 	---------------------------------------------
 
 	type color_arr_t is array (natural range <>) of color_t;
 	type rect_arr_t is array (natural range <>) of rect_t;
+	type int_arr_t is array (natural range <>) of integer;
 
-	signal screen_request_p                        : std_logic_vector(1 downto 0);
-	signal color_in_p                              : color_arr_t(1 downto 0);
-	signal tile_num_request_p                      : std_logic_vector(1 downto 0);
-	signal tile_num_ready_p, tile_num_ready_p_next : std_logic_vector(1 downto 0) := (others => '0');
-	signal screen_ready_p                          : std_logic_vector(1 downto 0) := (others => '0');
-	signal rects_p                                 : rect_arr_t(1 downto 0);
-	signal current_displaying_renderer_id            : integer;
+	signal screen_request_p                                                    : std_logic_vector(num_processes - 1 downto 0);
+	signal screen_request_ready_p, screen_request_ready_p_next                 : std_logic_vector(num_processes - 1 downto 0);
+	signal color_in_p                                                          : color_arr_t(num_processes - 1 downto 0);
+	signal tile_num_request_p                                                  : std_logic_vector(num_processes - 1 downto 0);
+	signal tile_num_ready_p, tile_num_ready_p_next                             : std_logic_vector(num_processes - 1 downto 0) := (others => '0');
+	signal screen_ready_p, screen_ready_p_next                                 : std_logic_vector(num_processes - 1 downto 0) := (others => '0');
+	signal rects_p                                                             : rect_arr_t(num_processes - 1 downto 0);
+	signal current_displaying_renderer_id, current_displaying_renderer_id_next : integer;
+	signal tile_num_out_p, tile_num_out_p_next                                 : int_arr_t(num_processes - 1 downto 0);
+
+	signal request_counter, request_counter_next : integer                 := 0;
+	signal bg_colors_p                           : color_arr_t(1 downto 0) := (COLOR_RED, COLOR_BLUE);
+
+	signal start_mesh_renderer, start_mesh_renderer_next : std_logic := '0';
 
 begin
 
@@ -127,52 +135,39 @@ begin
 			inclk0 => CLK_50,
 			c0     => fb_initializer_clk,
 			c1     => main_clk,
+			c2     => fb_display_clk,
 			locked => pll_locked
 		);
 
-	mesh_renderer0 : entity work.mesh_renderer
-		port map(
-			clk                    => main_clk,
-			rst                    => rst,
-			get_rect               => rects_p(0),
-			-------------------------------
-			screen_request_out     => screen_request_p(0),
-			screen_ready_in        => screen_ready_p(0),
-			screen_posx_in         => posx_out,
-			screen_posy_in         => posy_out,
-			screen_pixel_color_out => color_in_p(0),
-			-------------------------------
-			task_request_out       => tile_num_request_p(0),
-			task_ready_in          => tile_num_ready_p(0),
-			task_tile_num_in       => tile_num_out,
-			-------------------------------
-			rot_in                 => rot,
-			scale_in               => scale
-		);
-
-	mesh_renderer1 : entity work.mesh_renderer
-		port map(
-			clk                    => main_clk,
-			rst                    => rst,
-			get_rect               => rects_p(1),
-			-------------------------------
-			screen_request_out     => screen_request_p(1),
-			screen_ready_in        => screen_ready_p(1),
-			screen_posx_in         => posx_out,
-			screen_posy_in         => posy_out,
-			screen_pixel_color_out => color_in_p(1),
-			-------------------------------
-			task_request_out       => tile_num_request_p(1),
-			task_ready_in          => tile_num_ready_p(1),
-			task_tile_num_in       => tile_num_out,
-			-------------------------------
-			rot_in                 => rot,
-			scale_in               => scale
-		);
+	mesh_renderer_processes : for i in 0 to num_processes - 1 generate
+	begin
+		mesh_renderer : entity work.mesh_renderer
+			port map(
+				clk                     => main_clk,
+				rst                     => rst,
+				start_in                => start_mesh_renderer,
+				get_rect                => rects_p(i),
+				bg_color_in             => bg_colors_p(i),
+				-------------------------------
+				screen_request_out      => screen_request_p(i),
+				screen_request_ready_in => screen_request_ready_p(i),
+				screen_ready_in         => screen_ready_p(i),
+				screen_posx_in          => posx_out,
+				screen_posy_in          => posy_out,
+				screen_pixel_color_out  => color_in_p(i),
+				-------------------------------
+				task_request_out        => tile_num_request_p(i),
+				task_ready_in           => tile_num_ready_p(i),
+				task_tile_num_in        => tile_num_out_p(i),
+				-------------------------------
+				rot_in                  => rot,
+				scale_in                => scale
+			);
+	end generate;
 
 	framebuffer_driver0 : entity work.fb_driver
 		port map(
-			display_clk     => main_clk,
+			display_clk     => fb_display_clk,
 			initializer_clk => fb_initializer_clk,
 			rst             => rst,
 			-------------------------------
@@ -251,57 +246,85 @@ begin
 	LED(1) <= led_blink;
 
 	rst <= not BTN(0);
-	
+
 	color_in <= color_in_p(current_displaying_renderer_id);
 
-	process(main_clk, rst) is
+	process(fb_display_clk, rst) is
 	begin
 		if rst then
 			state_screen <= st_start;
-		elsif rising_edge(main_clk) then
-			case state_screen is
-				when st_start =>
-					screen_ready_p               <= (others => '0');
-					fb_disp_start_write          <= '0';
-					state_screen                 <= st_wait_for_framebuffer_init;
-					current_displaying_renderer_id <= -1;
-
-				when st_wait_for_framebuffer_init =>
-					if framebuffer_initialized then
-						state_screen <= st_idle;
-					else
-						state_screen <= st_wait_for_framebuffer_init;
-					end if;
-
-				when st_idle =>
-					if screen_request_p(0) then
-						current_displaying_renderer_id <= 0;
-						screen_ready_p               <= (others => '0');
-						state_screen                 <= st_screen_write;
-					elsif screen_request_p(1) then
-						current_displaying_renderer_id <= 1;
-						screen_ready_p               <= (others => '0');
-						state_screen                 <= st_screen_write;
-					else
-						state_screen <= st_idle;
-					end if;
-
-				when st_screen_write =>
-					fb_disp_start_write <= '1';
-					fb_disp_window_rect <= rects_p(current_displaying_renderer_id);
-					state_screen        <= st_screen_wait;
-
-				when st_screen_wait =>
-					fb_disp_start_write <= '0';
-					if fb_disp_write_done then
-						screen_ready_p(current_displaying_renderer_id) <= '1';
-						state_screen                                 <= st_idle;
-					else
-						state_screen <= st_screen_wait;
-					end if;
-
-			end case;
+		elsif rising_edge(fb_display_clk) then
+			fb_disp_window_rect            <= fb_disp_window_rect_next;
+			screen_ready_p                 <= screen_ready_p_next;
+			screen_request_ready_p         <= screen_request_ready_p_next;
+			fb_disp_start_write            <= fb_disp_start_write_next;
+			state_screen                   <= state_screen_next;
+			current_displaying_renderer_id <= current_displaying_renderer_id_next;
+			start_mesh_renderer            <= start_mesh_renderer_next;
 		end if;
+	end process;
+
+	process(all) is
+	begin
+		fb_disp_window_rect_next            <= fb_disp_window_rect;
+		screen_ready_p_next                 <= screen_ready_p;
+		screen_request_ready_p_next         <= screen_request_ready_p;
+		fb_disp_start_write_next            <= fb_disp_start_write;
+		state_screen_next                   <= state_screen;
+		current_displaying_renderer_id_next <= current_displaying_renderer_id;
+		start_mesh_renderer_next            <= start_mesh_renderer;
+
+		case state_screen is
+
+			when st_start =>
+				screen_ready_p_next                 <= (others => '0');
+				screen_request_ready_p_next         <= (others => '0');
+				fb_disp_start_write_next            <= '0';
+				state_screen_next                   <= st_wait_for_framebuffer_init;
+				current_displaying_renderer_id_next <= -1;
+				start_mesh_renderer_next            <= '0';
+
+			when st_wait_for_framebuffer_init =>
+				if framebuffer_initialized then
+					start_mesh_renderer_next <= '1';
+					state_screen_next        <= st_idle;
+				else
+					state_screen_next <= st_wait_for_framebuffer_init;
+				end if;
+
+			when st_idle =>
+				screen_ready_p_next         <= (others => '0');
+				screen_request_ready_p_next <= (others => '0');
+				if screen_request_p(0) then
+					current_displaying_renderer_id_next <= 0;
+					screen_request_ready_p_next(0)      <= '1';
+					state_screen_next                   <= st_screen_write;
+				elsif screen_request_p(1) then
+					current_displaying_renderer_id_next <= 1;
+					screen_request_ready_p_next(1)      <= '1';
+					state_screen_next                   <= st_screen_write;
+				else
+					state_screen_next <= st_idle;
+				end if;
+
+			when st_screen_write =>
+				fb_disp_start_write_next    <= '1';
+				screen_ready_p_next         <= (others => '0');
+				screen_request_ready_p_next <= (others => '0');
+				fb_disp_window_rect_next    <= rects_p(current_displaying_renderer_id);
+				state_screen_next           <= st_screen_wait;
+
+			when st_screen_wait =>
+				fb_disp_start_write_next <= '0';
+				if fb_disp_write_done then
+					screen_ready_p_next(current_displaying_renderer_id) <= '1';
+					state_screen_next                                   <= st_idle;
+				else
+					state_screen_next <= st_screen_wait;
+				end if;
+
+		end case;
+
 	end process;
 
 	process(main_clk, rst) is
@@ -311,9 +334,10 @@ begin
 		elsif rising_edge(main_clk) then
 			tile_num         <= tile_num_next;
 			tile_num_ready_p <= tile_num_ready_p_next;
-			tile_num_out     <= tile_num_out_next;
+			tile_num_out_p   <= tile_num_out_p_next;
 			state_tile       <= state_tile_next;
 			rot              <= rot_next;
+			request_counter  <= request_counter_next;
 		end if;
 	end process;
 
@@ -321,30 +345,45 @@ begin
 	begin
 		tile_num_next         <= tile_num;
 		tile_num_ready_p_next <= tile_num_ready_p;
-		tile_num_out_next     <= tile_num_out;
+		tile_num_out_p_next   <= tile_num_out_p;
 		state_tile_next       <= state_tile;
 		rot_next              <= rot;
+		request_counter_next  <= request_counter;
 		case state_tile is
 
 			when st_start =>
 				tile_num_next         <= 0;
 				tile_num_ready_p_next <= (others => '0');
-				tile_num_out_next     <= 0;
+				tile_num_out_p_next   <= (others => 0);
 				rot_next              <= (others => int16(0));
 				state_tile_next       <= st_idle;
 
 			when st_idle =>
 				if tile_num_request_p(0) then
-					tile_num_out_next        <= tile_num;
+					tile_num_out_p_next(0)   <= tile_num;
 					tile_num_ready_p_next(0) <= '1';
 					state_tile_next          <= st_next_tile;
 				elsif tile_num_request_p(1) then
-					tile_num_out_next        <= tile_num;
+					tile_num_out_p_next(1)   <= tile_num;
 					tile_num_ready_p_next(1) <= '1';
 					state_tile_next          <= st_next_tile;
 				else
 					tile_num_ready_p_next <= (others => '0');
-					state_tile_next     <= st_idle;
+					state_tile_next       <= st_idle2;
+				end if;
+				
+			when st_idle2 =>
+				if tile_num_request_p(1) then
+					tile_num_out_p_next(1)   <= tile_num;
+					tile_num_ready_p_next(1) <= '1';
+					state_tile_next          <= st_next_tile;
+				elsif tile_num_request_p(0) then
+					tile_num_out_p_next(0)   <= tile_num;
+					tile_num_ready_p_next(0) <= '1';
+					state_tile_next          <= st_next_tile;
+				else
+					tile_num_ready_p_next <= (others => '0');
+					state_tile_next       <= st_idle;
 				end if;
 
 			when st_next_tile =>

@@ -6,6 +6,8 @@ use work.definitions.all;
 
 package config is
 
+	constant num_processes : integer := 2;
+
 	constant MODE_320_240 : boolean := false;
 
 	constant MAIN_CLK_MHZ : integer := 50;
