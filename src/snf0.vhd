@@ -58,14 +58,16 @@ architecture behavioral of snf0 is
 
 	type state_tile_type is (
 		st_start,
-		st_idle,
+		st_idle, st_check_requests,
 		st_next_tile,
 		st_wait_for_workers
 	);
 	signal state_tile, state_tile_next : state_tile_type := st_start;
 
 	type state_screen_type is (
-		st_start, st_wait_for_framebuffer_init, st_idle, st_screen_write, st_screen_wait
+		st_start, st_wait_for_framebuffer_init, 
+		st_idle, st_check_requests,
+		st_screen_write, st_screen_wait
 	);
 	signal state_screen, state_screen_next : state_screen_type;
 
@@ -123,10 +125,12 @@ architecture behavioral of snf0 is
 	signal tile_num_out_p, tile_num_out_p_next                                 : int_arr_t(num_processes - 1 downto 0);
 	signal working_p                                                           : std_logic_vector(num_processes - 1 downto 0);
 
-	signal request_counter, request_counter_next : integer             := 0;
-	signal bg_colors_p                           : color_arr_t(0 to 5) := (COLOR_BLUE, COLOR_GREEN, COLOR_RED, COLOR_YELLOW, COLOR_MAGENTA, COLOR_CYAN);
+	signal tile_request_counter, tile_request_counter_next : integer             := 0;
+	signal bg_colors_p                                     : color_arr_t(0 to 5) := (COLOR_BLUE, COLOR_GREEN, COLOR_RED, COLOR_YELLOW, COLOR_MAGENTA, COLOR_CYAN);
 
 	signal start_mesh_renderer, start_mesh_renderer_next : std_logic := '0';
+	
+	signal request_counter, request_counter_next : integer;
 
 begin
 
@@ -263,6 +267,7 @@ begin
 			state_screen                   <= state_screen_next;
 			current_displaying_renderer_id <= current_displaying_renderer_id_next;
 			start_mesh_renderer            <= start_mesh_renderer_next;
+			request_counter <= request_counter_next;
 		end if;
 	end process;
 
@@ -275,6 +280,7 @@ begin
 		state_screen_next                   <= state_screen;
 		current_displaying_renderer_id_next <= current_displaying_renderer_id;
 		start_mesh_renderer_next            <= start_mesh_renderer;
+		request_counter_next  <= request_counter;
 
 		case state_screen is
 
@@ -285,6 +291,7 @@ begin
 				state_screen_next                   <= st_wait_for_framebuffer_init;
 				current_displaying_renderer_id_next <= 0;
 				start_mesh_renderer_next            <= '0';
+				request_counter_next <= 0;
 
 			when st_wait_for_framebuffer_init =>
 				if framebuffer_initialized then
@@ -295,21 +302,32 @@ begin
 				end if;
 
 			when st_idle =>
+				request_counter_next <= 1;
+
 				screen_ready_p_next         <= (others => '0');
 				screen_request_ready_p_next <= (others => '0');
-				state_screen_next           <= st_idle;
+
 				if screen_request_p(0) then
 					current_displaying_renderer_id_next <= 0;
 					screen_request_ready_p_next(0)      <= '1';
 					state_screen_next                   <= st_screen_write;
-				elsif screen_request_p(1) then
-					current_displaying_renderer_id_next <= 1;
-					screen_request_ready_p_next(1)      <= '1';
-					state_screen_next                   <= st_screen_write;
-				elsif screen_request_p(2) then
-					current_displaying_renderer_id_next <= 2;
-					screen_request_ready_p_next(2)      <= '1';
-					state_screen_next                   <= st_screen_write;
+				else
+					state_screen_next <= st_check_requests;
+				end if;
+
+			when st_check_requests =>
+				if request_counter < num_processes then
+					request_counter_next <= request_counter + 1;
+					if screen_request_p(request_counter) then
+						current_displaying_renderer_id_next <= request_counter;
+						screen_request_ready_p_next(request_counter)      <= '1';
+						state_screen_next                   <= st_screen_write;
+					else
+						state_screen_next <= st_check_requests;
+					end if;
+				else
+					request_counter_next <= 0;
+					state_screen_next           <= st_idle;
 				end if;
 
 			when st_screen_write =>
@@ -337,23 +355,23 @@ begin
 		if rst then
 			state_tile <= st_start;
 		elsif rising_edge(main_clk) then
-			tile_num         <= tile_num_next;
-			tile_num_ready_p <= tile_num_ready_p_next;
-			tile_num_out_p   <= tile_num_out_p_next;
-			state_tile       <= state_tile_next;
-			rot              <= rot_next;
-			request_counter  <= request_counter_next;
+			tile_num             <= tile_num_next;
+			tile_num_ready_p     <= tile_num_ready_p_next;
+			tile_num_out_p       <= tile_num_out_p_next;
+			state_tile           <= state_tile_next;
+			rot                  <= rot_next;
+			tile_request_counter <= tile_request_counter_next;
 		end if;
 	end process;
 
 	process(all) is
 	begin
-		tile_num_next         <= tile_num;
-		tile_num_ready_p_next <= tile_num_ready_p;
-		tile_num_out_p_next   <= tile_num_out_p;
-		state_tile_next       <= state_tile;
-		rot_next              <= rot;
-		request_counter_next  <= request_counter;
+		tile_num_next             <= tile_num;
+		tile_num_ready_p_next     <= tile_num_ready_p;
+		tile_num_out_p_next       <= tile_num_out_p;
+		state_tile_next           <= state_tile;
+		rot_next                  <= rot;
+		tile_request_counter_next <= tile_request_counter;
 		case state_tile is
 
 			when st_start =>
@@ -364,19 +382,28 @@ begin
 				state_tile_next       <= st_idle;
 
 			when st_idle =>
+				tile_request_counter_next <= 1;
+
 				if tile_num_request_p(0) then
 					tile_num_out_p_next(0)   <= tile_num;
 					tile_num_ready_p_next(0) <= '1';
 					state_tile_next          <= st_next_tile;
-				elsif tile_num_request_p(1) then
-					tile_num_out_p_next(1)   <= tile_num;
-					tile_num_ready_p_next(1) <= '1';
-					state_tile_next          <= st_next_tile;
-				elsif tile_num_request_p(2) then
-					tile_num_out_p_next(2)   <= tile_num;
-					tile_num_ready_p_next(2) <= '1';
-					state_tile_next          <= st_next_tile;
 				else
+					state_tile_next <= st_check_requests;
+				end if;
+
+			when st_check_requests =>
+				if tile_request_counter < num_processes then
+					tile_request_counter_next <= tile_request_counter + 1;
+					if tile_num_request_p(tile_request_counter) then
+						tile_num_out_p_next(tile_request_counter)   <= tile_num;
+						tile_num_ready_p_next(tile_request_counter) <= '1';
+						state_tile_next                             <= st_next_tile;
+					else
+						state_tile_next <= st_check_requests;
+					end if;
+				else
+					tile_request_counter_next <= 0;
 					tile_num_ready_p_next <= (others => '0');
 					state_tile_next       <= st_idle;
 				end if;

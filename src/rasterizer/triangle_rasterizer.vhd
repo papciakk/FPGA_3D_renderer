@@ -200,7 +200,8 @@ begin
 				if depth < depth_out_latch then
 					depth_wren   <= '1';
 					depth_buf_in <= depth;
-					color_out    <= (r => r, g => g, b => b);
+--					color_out    <= (r => r, g => g, b => b);
+					color_out <= (others => X"FF");
 
 					put_pixel_out_next <= '1';
 				else
