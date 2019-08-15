@@ -8,25 +8,26 @@ use work.tiles.all;
 
 entity mesh_renderer is
 	port(
-		clk                    : in  std_logic;
-		rst                    : in  std_logic;
-		start_in               : in  std_logic;
-		get_rect               : out rect_t;
-		bg_color_in            : in  color_t;
+		clk                     : in  std_logic;
+		rst                     : in  std_logic;
+		start_in                : in  std_logic;
+		get_rect                : out rect_t;
+		bg_color_in             : in  color_t;
 		---------------------------------
-		rot_in                 : in  point3d_t;
-		scale_in               : in  int16_t;
+		rot_in                  : in  point3d_t;
+		scale_in                : in  int16_t;
 		---------------------------------
-		screen_request_out     : out std_logic;
-		screen_request_ready_in     : in std_logic;
-		screen_ready_in        : in  std_logic;
-		screen_posx_in         : in  uint16_t;
-		screen_posy_in         : in  uint16_t;
-		screen_pixel_color_out : out color_t;
+		screen_request_out      : out std_logic;
+		screen_request_ready_in : in  std_logic;
+		screen_ready_in         : in  std_logic;
+		screen_posx_in          : in  uint16_t;
+		screen_posy_in          : in  uint16_t;
+		screen_pixel_color_out  : out color_t;
 		---------------------------------
-		task_request_out       : out std_logic;
-		task_ready_in          : in  std_logic;
-		task_tile_num_in       : in  integer
+		task_request_out        : out std_logic;
+		task_ready_in           : in  std_logic;
+		task_tile_num_in        : in  integer;
+		working_out             : out std_logic
 	);
 end entity mesh_renderer;
 
@@ -76,6 +77,7 @@ architecture rtl of mesh_renderer is
 	signal current_tile_rect_next      : rect_t;
 	signal current_tile_next           : integer;
 	signal current_tile_rect_attr_next : rect_attr_t;
+	signal working_out_next            : std_logic;
 begin
 	get_rect <= current_tile_rect;
 
@@ -186,6 +188,7 @@ begin
 			current_tile_rect      <= current_tile_rect_next;
 			current_tile           <= current_tile_next;
 			current_tile_rect_attr <= current_tile_rect_attr_next;
+			working_out            <= working_out_next;
 		end if;
 	end process;
 
@@ -200,6 +203,7 @@ begin
 		current_tile_rect_next      <= current_tile_rect;
 		current_tile_next           <= current_tile;
 		current_tile_rect_attr_next <= current_tile_rect_attr;
+		working_out_next            <= working_out;
 
 		case state_drawing is
 
@@ -209,6 +213,7 @@ begin
 				current_tile_rect_next  <= tile_rects(0).rect;
 				task_request_out_next   <= '0';
 				state_drawing_next      <= st_wait_for_start;
+				working_out_next        <= '0';
 
 			when st_wait_for_start =>
 				if start_in then
@@ -256,13 +261,14 @@ begin
 			when st_wait_for_screen_request =>
 				if screen_request_ready_in then
 					screen_request_out_next <= '0';
-					state_drawing_next <= st_wait_for_copy_to_screen;
+					state_drawing_next      <= st_wait_for_copy_to_screen;
 				else
 					state_drawing_next <= st_wait_for_screen_request;
 				end if;
 
 			when st_wait_for_copy_to_screen =>
 				if screen_ready_in then
+					working_out_next      <= '0';
 					task_request_out_next <= '1';
 					state_drawing_next    <= st_get_tile_wait;
 				else
@@ -273,11 +279,12 @@ begin
 
 			when st_get_tile_wait =>
 				if task_ready_in then
-					task_request_out_next <= '0';
+					task_request_out_next       <= '0';
 					current_tile_next           <= task_tile_num_in;
 					current_tile_rect_attr_next <= tile_rects(task_tile_num_in);
 					current_tile_rect_next      <= tile_rects(task_tile_num_in).rect;
 					state_drawing_next          <= st_tilegen_clear;
+					working_out_next            <= '1';
 				else
 					state_drawing_next <= st_get_tile_wait;
 				end if;

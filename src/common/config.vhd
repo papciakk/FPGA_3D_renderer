@@ -6,7 +6,7 @@ use work.definitions.all;
 
 package config is
 
-	constant num_processes : integer := 2;
+	constant num_processes : integer := 3;
 
 	constant MODE_320_240 : boolean := false;
 
@@ -44,5 +44,8 @@ package config is
 	constant COLOR_RED   : color_t := (r => X"FF", others => X"00");
 	constant COLOR_GREEN : color_t := (g => X"FF", others => X"00");
 	constant COLOR_BLUE  : color_t := (b => X"FF", others => X"00");
+	constant COLOR_YELLOW  : color_t := (r => X"FF", g => X"FF", b => X"00");
+	constant COLOR_MAGENTA  : color_t := (r => X"FF", g => X"00", b => X"FF");
+	constant COLOR_CYAN  : color_t := (r => X"00", g => X"FF", b => X"FF");
 
 end package config;

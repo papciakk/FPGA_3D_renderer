@@ -59,8 +59,8 @@ architecture behavioral of snf0 is
 	type state_tile_type is (
 		st_start,
 		st_idle,
-		st_idle2,
-		st_next_tile
+		st_next_tile,
+		st_wait_for_workers
 	);
 	signal state_tile, state_tile_next : state_tile_type := st_start;
 
@@ -121,9 +121,10 @@ architecture behavioral of snf0 is
 	signal rects_p                                                             : rect_arr_t(num_processes - 1 downto 0);
 	signal current_displaying_renderer_id, current_displaying_renderer_id_next : integer;
 	signal tile_num_out_p, tile_num_out_p_next                                 : int_arr_t(num_processes - 1 downto 0);
+	signal working_p                                                           : std_logic_vector(num_processes - 1 downto 0);
 
-	signal request_counter, request_counter_next : integer                 := 0;
-	signal bg_colors_p                           : color_arr_t(1 downto 0) := (COLOR_RED, COLOR_BLUE);
+	signal request_counter, request_counter_next : integer             := 0;
+	signal bg_colors_p                           : color_arr_t(0 to 5) := (COLOR_BLUE, COLOR_GREEN, COLOR_RED, COLOR_YELLOW, COLOR_MAGENTA, COLOR_CYAN);
 
 	signal start_mesh_renderer, start_mesh_renderer_next : std_logic := '0';
 
@@ -159,6 +160,7 @@ begin
 				task_request_out        => tile_num_request_p(i),
 				task_ready_in           => tile_num_ready_p(i),
 				task_tile_num_in        => tile_num_out_p(i),
+				working_out             => working_p(i),
 				-------------------------------
 				rot_in                  => rot,
 				scale_in                => scale
@@ -281,7 +283,7 @@ begin
 				screen_request_ready_p_next         <= (others => '0');
 				fb_disp_start_write_next            <= '0';
 				state_screen_next                   <= st_wait_for_framebuffer_init;
-				current_displaying_renderer_id_next <= -1;
+				current_displaying_renderer_id_next <= 0;
 				start_mesh_renderer_next            <= '0';
 
 			when st_wait_for_framebuffer_init =>
@@ -295,6 +297,7 @@ begin
 			when st_idle =>
 				screen_ready_p_next         <= (others => '0');
 				screen_request_ready_p_next <= (others => '0');
+				state_screen_next           <= st_idle;
 				if screen_request_p(0) then
 					current_displaying_renderer_id_next <= 0;
 					screen_request_ready_p_next(0)      <= '1';
@@ -303,8 +306,10 @@ begin
 					current_displaying_renderer_id_next <= 1;
 					screen_request_ready_p_next(1)      <= '1';
 					state_screen_next                   <= st_screen_write;
-				else
-					state_screen_next <= st_idle;
+				elsif screen_request_p(2) then
+					current_displaying_renderer_id_next <= 2;
+					screen_request_ready_p_next(2)      <= '1';
+					state_screen_next                   <= st_screen_write;
 				end if;
 
 			when st_screen_write =>
@@ -367,19 +372,9 @@ begin
 					tile_num_out_p_next(1)   <= tile_num;
 					tile_num_ready_p_next(1) <= '1';
 					state_tile_next          <= st_next_tile;
-				else
-					tile_num_ready_p_next <= (others => '0');
-					state_tile_next       <= st_idle2;
-				end if;
-				
-			when st_idle2 =>
-				if tile_num_request_p(1) then
-					tile_num_out_p_next(1)   <= tile_num;
-					tile_num_ready_p_next(1) <= '1';
-					state_tile_next          <= st_next_tile;
-				elsif tile_num_request_p(0) then
-					tile_num_out_p_next(0)   <= tile_num;
-					tile_num_ready_p_next(0) <= '1';
+				elsif tile_num_request_p(2) then
+					tile_num_out_p_next(2)   <= tile_num;
+					tile_num_ready_p_next(2) <= '1';
 					state_tile_next          <= st_next_tile;
 				else
 					tile_num_ready_p_next <= (others => '0');
@@ -389,13 +384,25 @@ begin
 			when st_next_tile =>
 				tile_num_ready_p_next <= (others => '0');
 				if tile_num < TILES_CNT then
-					tile_num_next <= tile_num + 1;
+					tile_num_next   <= tile_num + 1;
+					state_tile_next <= st_idle;
 				else
-					rot_next.x    <= sel(rot.x = 359, int16(0), rot.x + 1);
-					tile_num_next <= 0;
+					if or_reduce(working_p) then
+						state_tile_next <= st_wait_for_workers;
+					else
+						rot_next.x      <= sel(rot.x = 359, int16(0), rot.x + 1);
+						tile_num_next   <= 0;
+						state_tile_next <= st_idle;
+					end if;
 				end if;
 
-				state_tile_next <= st_idle;
+			when st_wait_for_workers =>
+				if or_reduce(working_p) then
+					state_tile_next <= st_wait_for_workers;
+				else
+					state_tile_next <= st_next_tile;
+				end if;
+
 		end case;
 	end process;
 
