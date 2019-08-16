@@ -430,10 +430,8 @@ begin
 					else
 						rot_next         <= point3d(0, 0, 0);
 						scale_next       <= int16(255);
---						rot_light_next.y <= sel(rot_light.y = 359, int16(0), rot_light.y + 1);
+						rot_light_next.y <= sel(rot_light.y = 359, int16(0), rot_light.y + 1);
 						rot_light_next.x <= sel(rot_light.x = 359, int16(0), rot_light.x + 1);
-						rot_light_next.y <= int16(0);
-						rot_light_next.z <= int16(0);
 						--						rot_next.x      <= sel(rot.x = 359, int16(0), rot.x + 1);
 						--						rot_next.y      <= sel(rot.y = 359, int16(0), rot.y + 1);
 						--						rot_next.z      <= sel(rot.z = 359, int16(0), rot.z + 1);
