@@ -93,11 +93,11 @@ architecture behavioral of snf0 is
 
 	-----------------------------------------
 
-	signal input_clk : std_logic := '0';
-	signal key       : keys_t;
-	signal rot       : point3d_t;
-	signal rot_next  : point3d_t;
-	signal scale     : int16_t;
+	signal input_clk                 : std_logic := '0';
+	signal key                       : keys_t;
+	signal rot, rot_next             : point3d_t;
+	signal rot_light, rot_light_next : point3d_t;
+	signal scale                     : int16_t;
 
 	signal tile_num_next : integer;
 
@@ -152,8 +152,10 @@ begin
 				clk                     => main_clk,
 				screen_clk              => display_clk,
 				rst                     => rst,
+				-------------------------------
 				start_in                => start_mesh_renderer,
 				get_rect                => rects_p(i),
+				-------------------------------
 				bg_color_in             => bg_colors_p(i),
 				-------------------------------
 				screen_request_out      => screen_request_p(i),
@@ -169,6 +171,7 @@ begin
 				working_out             => working_p(i),
 				-------------------------------
 				rot_in                  => rot,
+				rot_light_in            => rot_light,
 				scale_in                => scale
 			);
 	end generate;
@@ -362,6 +365,7 @@ begin
 			tile_num_out_p       <= tile_num_out_p_next;
 			state_tile           <= state_tile_next;
 			rot                  <= rot_next;
+			rot_light            <= rot_light_next;
 			scale                <= scale_next;
 			tile_request_counter <= tile_request_counter_next;
 		end if;
@@ -374,6 +378,7 @@ begin
 		tile_num_out_p_next       <= tile_num_out_p;
 		state_tile_next           <= state_tile;
 		rot_next                  <= rot;
+		rot_light_next            <= rot_light;
 		scale_next                <= scale;
 		tile_request_counter_next <= tile_request_counter;
 		case state_tile is
@@ -382,7 +387,8 @@ begin
 				tile_num_next         <= 0;
 				tile_num_ready_p_next <= (others => '0');
 				tile_num_out_p_next   <= (others => 0);
-				rot_next              <= (others => int16(0));
+				rot_next              <= point3d(0, 0, 0);
+				rot_light_next        <= point3d(0, 0, 0);
 				scale_next            <= int16(1);
 				state_tile_next       <= st_idle;
 
@@ -422,12 +428,18 @@ begin
 					if or_reduce(working_p) then
 						state_tile_next <= st_wait_for_workers;
 					else
-						rot_next.x      <= sel(rot.x = 359, int16(0), rot.x + 1);
-						rot_next.y      <= sel(rot.y = 359, int16(0), rot.y + 1);
-						rot_next.z      <= sel(rot.z = 359, int16(0), rot.z + 1);
-						scale_next      <= sel(scale = 255, int16(1), scale + 1);
-						tile_num_next   <= 0;
-						state_tile_next <= st_idle;
+						rot_next         <= point3d(0, 0, 0);
+						scale_next       <= int16(255);
+--						rot_light_next.y <= sel(rot_light.y = 359, int16(0), rot_light.y + 1);
+						rot_light_next.x <= sel(rot_light.x = 359, int16(0), rot_light.x + 1);
+						rot_light_next.y <= int16(0);
+						rot_light_next.z <= int16(0);
+						--						rot_next.x      <= sel(rot.x = 359, int16(0), rot.x + 1);
+						--						rot_next.y      <= sel(rot.y = 359, int16(0), rot.y + 1);
+						--						rot_next.z      <= sel(rot.z = 359, int16(0), rot.z + 1);
+						--						scale_next      <= sel(scale = 255, int16(1), scale + 1);
+						tile_num_next    <= 0;
+						state_tile_next  <= st_idle;
 					end if;
 				end if;
 

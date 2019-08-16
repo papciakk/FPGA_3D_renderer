@@ -8,6 +8,8 @@ package config is
 
 	constant num_processes : integer := 1;
 
+	constant ENABLE_LIGHTING : boolean := true;
+
 	constant MODE_320_240 : boolean := false;
 
 	constant MAIN_CLK_MHZ : integer := 50;

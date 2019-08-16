@@ -3,6 +3,7 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.stdint.all;
 use work.definitions.all;
+use work.config.all;
 use work.renderer_inc.all;
 
 entity triangle_rasterizer is
@@ -70,6 +71,8 @@ begin
 
 	current_point.x <= x;
 	current_point.y <= y;
+	
+	color_out <= (r, g, b) when ENABLE_LIGHTING else (others => X"FF");
 
 	process(clk, rst) is
 	begin
@@ -200,8 +203,6 @@ begin
 				if depth < depth_out_latch then
 					depth_wren   <= '1';
 					depth_buf_in <= depth;
---					color_out    <= (r => r, g => g, b => b);
-					color_out <= (others => X"FF");
 
 					put_pixel_out_next <= '1';
 				else

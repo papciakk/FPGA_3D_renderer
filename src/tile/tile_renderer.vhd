@@ -28,11 +28,14 @@ entity tile_renderer is
 		depth_wren_out     : out std_logic;
 		-----------------------------------
 		rot_in             : in  point3d_t;
+		rot_light_in       : in  point3d_t;
 		scale_in           : in  int16_t
 	);
 end entity;
 
 architecture rtl of tile_renderer is
+
+	constant light_dir_starting : point3d_t := point3d(0, 0, -512);
 
 	signal triangle_id, triangle_id_next : integer := 0;
 
@@ -52,10 +55,9 @@ architecture rtl of tile_renderer is
 
 	---------------------------------------------------------------
 
-	signal sine   : int16_t;
-	signal cosine : int16_t;
-	signal angle  : int16_t;
+	signal angle, sine, cosine : int16_t;
 
+	signal rh_shift                               : int8_t;
 	signal rh_in01, rh_in02, rh_in03, rh_in04     : int16_t;
 	signal rh_in11, rh_in12, rh_in13, rh_in14     : int16_t;
 	signal rh_in21, rh_in22, rh_in23, rh_in24     : int16_t;
@@ -66,8 +68,8 @@ architecture rtl of tile_renderer is
 
 	---------------------------------------------------------------
 
-	signal light_dir       : point3d_t := (int16(0), int16(0), int16(-512));
-	signal ambient_diffuse : int16_t   := int16(20);
+	signal light_dir, light_dir_next : point3d_t;
+	signal ambient_diffuse           : int16_t := int16(20);
 
 	---------------------------------------------------------------
 
@@ -79,6 +81,7 @@ architecture rtl of tile_renderer is
 		st_calc_lighting, st_wait_for_rasterizer
 	);
 	signal state, state_next : state_type := st_start;
+
 begin
 
 	sin_cos_0 : entity work.sin_cos
@@ -90,6 +93,7 @@ begin
 
 	rotation_helper0 : entity work.rotation_helper
 		port map(
+			shift => rh_shift,
 			in01  => rh_in01, in02 => rh_in02, in03 => rh_in03, in04 => rh_in04,
 			in11  => rh_in11, in12 => rh_in12, in13 => rh_in13, in14 => rh_in14,
 			in21  => rh_in21, in22 => rh_in22, in23 => rh_in23, in24 => rh_in24,
@@ -131,6 +135,7 @@ begin
 			attr0            <= attr0_next;
 			attr1            <= attr1_next;
 			attr2            <= attr2_next;
+			light_dir        <= light_dir_next;
 			start_rasterizer <= start_rasterizer_next;
 			triangle         <= triangle_next;
 			area             <= area_next;
@@ -150,6 +155,7 @@ begin
 		attr0_next            <= attr0;
 		attr1_next            <= attr1;
 		attr2_next            <= attr2;
+		light_dir_next        <= light_dir;
 		start_rasterizer_next <= start_rasterizer;
 		triangle_next         <= triangle;
 		area_next             <= area;
@@ -175,6 +181,7 @@ begin
 
 			when st_prepare_triangle_verts =>
 				ready_out_next <= '0';
+				light_dir_next <= light_dir_starting;
 				attr0_next     <= vertices(to_integer(indices(triangle_id).a));
 				attr1_next     <= vertices(to_integer(indices(triangle_id).b));
 				attr2_next     <= vertices(to_integer(indices(triangle_id).c));
@@ -186,8 +193,8 @@ begin
 				-- y' = y * cos(x) - z * sin(x)
 				-- z' = y * sin(x) + z * cos(x)
 
-				angle <= rot_in.x;
-
+				angle            <= rot_in.x;
+				rh_shift         <= int8(13);
 				rh_in01          <= attr0.pos.y;
 				rh_in02          <= -attr0.pos.z;
 				rh_in03          <= attr0.pos.y;
@@ -218,8 +225,8 @@ begin
 				-- y' = y
 				-- z' = z * cos(y) - x * sin(y)
 
-				angle <= rot_in.y;
-
+				angle            <= rot_in.y;
+				rh_shift         <= int8(13);
 				rh_in01          <= attr0.pos.z;
 				rh_in02          <= attr0.pos.x;
 				rh_in03          <= attr0.pos.z;
@@ -250,8 +257,8 @@ begin
 				-- y' = x * sin(z) + y * cos(z)
 				-- z' = z
 
-				angle <= rot_in.z;
-
+				angle            <= rot_in.z;
+				rh_shift         <= int8(13);
 				rh_in01          <= attr0.pos.x;
 				rh_in02          <= -attr0.pos.y;
 				rh_in03          <= attr0.pos.x;
@@ -286,6 +293,19 @@ begin
 				attr1_next.pos <= calc_scale(scale_in, attr1.pos);
 				attr2_next.pos <= calc_scale(scale_in, attr2.pos);
 
+				angle    <= rot_light_in.x;
+				rh_shift <= int8(13);
+				rh_in01  <= light_dir.y;
+				rh_in02  <= -light_dir.z;
+				rh_in03  <= light_dir.y;
+				rh_in04  <= light_dir.z;
+				rh_trig1 <= cosine;
+				rh_trig2 <= sine;
+				rh_trig3 <= sine;
+				rh_trig4 <= cosine;
+				light_dir_next.y <= rh_out01;
+				light_dir_next.z <= rh_out02;
+
 				state_next <= st_rescale_attributes;
 
 			when st_rescale_attributes =>
@@ -293,6 +313,19 @@ begin
 				attr0_next.pos        <= rescale_vertices(attr0.pos);
 				attr1_next.pos        <= rescale_vertices(attr1.pos);
 				attr2_next.pos        <= rescale_vertices(attr2.pos);
+
+				angle            <= rot_light_in.y;
+				rh_shift         <= int8(13);
+				rh_in01          <= light_dir.z;
+				rh_in02          <= light_dir.x;
+				rh_in03          <= light_dir.z;
+				rh_in04          <= -light_dir.x;
+				rh_trig1         <= sine;
+				rh_trig2         <= cosine;
+				rh_trig3         <= cosine;
+				rh_trig4         <= sine;
+				light_dir_next.x <= rh_out01;
+				light_dir_next.z <= rh_out02;
 
 				state_next <= st_calc_area_prepare_parameters;
 

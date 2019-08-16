@@ -6,6 +6,7 @@ use work.stdint.all;
 
 entity rotation_helper is
 	port(
+		shift : in int8_t;
 		in01 : in int16_t;
 		in02 : in int16_t;
 		in03 : in int16_t;
@@ -33,12 +34,12 @@ end entity;
 
 architecture rtl of rotation_helper is	
 begin
-	out01 <= resize(shift_right(in01 * trig1 + in02 * trig2, 13), 16);
-	out02 <= resize(shift_right(in03 * trig3 + in04 * trig4, 13), 16);
+	out01 <= resize(shift_right(in01 * trig1 + in02 * trig2, to_integer(shift)), 16);
+	out02 <= resize(shift_right(in03 * trig3 + in04 * trig4, to_integer(shift)), 16);
 	
-	out11 <= resize(shift_right(in11 * trig1 + in12 * trig2, 13), 16);
-	out12 <= resize(shift_right(in13 * trig3 + in14 * trig4, 13), 16);
+	out11 <= resize(shift_right(in11 * trig1 + in12 * trig2, to_integer(shift)), 16);
+	out12 <= resize(shift_right(in13 * trig3 + in14 * trig4, to_integer(shift)), 16);
 	
-	out21 <= resize(shift_right(in21 * trig1 + in22 * trig2, 13), 16);
-	out22 <= resize(shift_right(in23 * trig3 + in24 * trig4, 13), 16);
+	out21 <= resize(shift_right(in21 * trig1 + in22 * trig2, to_integer(shift)), 16);
+	out22 <= resize(shift_right(in23 * trig3 + in24 * trig4, to_integer(shift)), 16);
 end architecture;
