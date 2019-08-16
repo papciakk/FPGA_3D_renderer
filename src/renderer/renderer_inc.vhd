@@ -11,8 +11,8 @@ package renderer_inc is
 	function get_triangle_and_tile_intersected_bounding_box(triangle_bb : srect_t; tile_bb : rect_t) return srect_t;
 	function get_current_rendering_bounding_box(triangle : triangle2d_t; tile_rect : rect_t) return srect_t;
 
-	function edge_function(a, b, c : point2d_t) return int16_t;
-	function edge_function(a, b, c : point3d_t) return int16_t;
+	function cross_product(a, b, c : point2d_t) return int16_t;
+	function cross_product(a, b, c : point3d_t) return int16_t;
 
 end package;
 
@@ -45,26 +45,20 @@ package body renderer_inc is
 			get_triangle_bounding_box(triangle),
 			tile_rect
 		);
---		return (
---			x0 => int16(tile_rect.x0),
---			x1 => int16(tile_rect.x1),
---			y0 => int16(tile_rect.y0),
---			y1 => int16(tile_rect.y1)
---		);
 	end function;
 	
-	function edge_function(a, b, c : point2d_t) return int16_t is
+	function cross_product(a, b, c : point2d_t) return int16_t is
 	begin
 		return resize((c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x), 16);
 	end function;
 	
-	function edge_function(a, b, c : point3d_t) return int16_t is
+	function cross_product(a, b, c : point3d_t) return int16_t is
 		variable aa, bb, cc : point2d_t;
 	begin
 		aa := (a.x, a.y);
 		bb := (b.x, b.y);
 		cc := (c.x, c.y);
-		return edge_function(aa, bb, cc);
+		return cross_product(aa, bb, cc);
 	end function;
 	
 end package body;

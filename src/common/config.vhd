@@ -6,7 +6,7 @@ use work.definitions.all;
 
 package config is
 
-	constant num_processes : integer := 2;
+	constant num_processes : integer := 1;
 
 	constant MODE_320_240 : boolean := false;
 

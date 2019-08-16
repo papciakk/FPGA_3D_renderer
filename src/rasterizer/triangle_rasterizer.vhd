@@ -151,17 +151,17 @@ begin
 				end if;
 
 			when st_render_e0 =>
-				e0         <= edge_function(triangle(1), triangle(2), current_point);
+				e0         <= cross_product(triangle(1), triangle(2), current_point);
 				state_next <= st_render_e1;
 
 			when st_render_e1 =>
 				put_pixel_out_next <= '0';
-				e1                 <= edge_function(triangle(2), triangle(0), current_point);
+				e1                 <= cross_product(triangle(2), triangle(0), current_point);
 				state_next         <= st_render_e2;
 
 			when st_render_e2 =>
 				put_pixel_out_next <= '0';
-				e2                 <= edge_function(triangle(0), triangle(1), current_point);
+				e2                 <= cross_product(triangle(0), triangle(1), current_point);
 				state_next         <= st_render_1;
 
 			when st_render_1 =>

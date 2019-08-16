@@ -9,25 +9,27 @@ use work.tiles.all;
 entity mesh_renderer is
 	port(
 		clk                     : in  std_logic;
+		screen_clk              : in  std_logic;
 		rst                     : in  std_logic;
+		--------------------------------------------
 		start_in                : in  std_logic;
-		get_rect                : out rect_t;
-		bg_color_in             : in  color_t;
-		---------------------------------
+		working_out             : out std_logic;
+		--------------------------------------------
 		rot_in                  : in  point3d_t;
 		scale_in                : in  int16_t;
-		---------------------------------
+		bg_color_in             : in  color_t;
+		--------------------------------------------
 		screen_request_out      : out std_logic;
 		screen_request_ready_in : in  std_logic;
 		screen_ready_in         : in  std_logic;
 		screen_posx_in          : in  uint16_t;
 		screen_posy_in          : in  uint16_t;
 		screen_pixel_color_out  : out color_t;
-		---------------------------------
+		--------------------------------------------
+		get_rect                : out rect_t;
 		task_request_out        : out std_logic;
 		task_ready_in           : in  std_logic;
-		task_tile_num_in        : in  integer;
-		working_out             : out std_logic
+		task_tile_num_in        : in  integer
 	);
 end entity mesh_renderer;
 
@@ -83,22 +85,23 @@ begin
 
 	tile_buffer0 : entity work.tile_buffer
 		port map(
-			screen_clk        => clk,
+			rst               => rst,
+			--------------------------------------------
+			screen_clk        => screen_clk,
 			screen_posx       => screen_posx_in,
 			screen_posy       => screen_posy_in,
 			color_out         => screen_pixel_color_out,
-			----------
+			--------------------------------------------
 			tilegen_clk       => clk,
 			tilegen_posx      => posx,
 			tilegen_posy      => posy,
 			tilegen_put_pixel => put_pixel,
 			color_in          => color,
-			----------
-			rst               => rst,
+			--------------------------------------------
 			clear             => tilebuf_clear,
 			clear_done        => tilebuf_clear_done,
 			clear_color       => clear_color,
-			----------
+			--------------------------------------------
 			depth_in          => depth_in,
 			depth_out         => depth_out,
 			depth_wren        => depth_wren
@@ -106,20 +109,25 @@ begin
 
 	tile_renderer0 : entity work.tile_renderer
 		port map(
-			clk                   => clk,
-			rst                   => rst,
-			trianglegen_posx_out  => untransposed_posx,
-			trianglegen_posy_out  => untransposed_posy,
-			trianglegen_put_pixel => put_pixel,
-			color_out             => color,
-			tile_rect_in          => current_tile_rect,
-			start_in              => start_rendering_tile,
-			ready_out             => tile_rendered,
-			depth_in              => depth_in,
-			depth_out             => depth_out,
-			depth_wren            => depth_wren,
-			rot                   => rot_in,
-			scale                 => scale_in
+			clk                => clk,
+			rst                => rst,
+			--------------------------------------------
+			posx_out           => untransposed_posx,
+			posy_out           => untransposed_posy,
+			put_pixel_out      => put_pixel,
+			pixel_color_out    => color,
+			--------------------------------------------
+			start_in           => start_rendering_tile,
+			ready_out          => tile_rendered,
+			--------------------------------------------
+			tile_rect_in       => current_tile_rect,
+			--------------------------------------------
+			depth_buf_read_out => depth_in,
+			depth_buf_write_in => depth_out,
+			depth_wren_out     => depth_wren,
+			--------------------------------------------
+			rot_in             => rot_in,
+			scale_in           => scale_in
 		);
 
 	posx <= untransposed_posx - current_tile_rect.x0;
