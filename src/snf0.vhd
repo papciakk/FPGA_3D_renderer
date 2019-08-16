@@ -8,6 +8,7 @@ use work.stdint.all;
 use work.definitions.all;
 use work.config.all;
 use work.keyboard_inc.all;
+use work.tiles.all;
 
 entity snf0 is
 	port(
@@ -55,101 +56,38 @@ end snf0;
 
 architecture behavioral of snf0 is
 
-	constant DELAY_IN_TICKS : integer := 2500000;
-
-	type fsm_state_type is (
-		st_idle,
+	type state_tile_type is (
 		st_start,
-		st_fb_init, st_fb_init_wait);
-	signal state_init : fsm_state_type := st_start;
-
-	type drawing_state_type is (
-		st_start,
-		st_delay,
-		st_wait,
-		st_screen_write,
-		st_init_tilegen, st_tilegen_wait,
-		st_disp_clear, st_disp_clear_wait,
+		st_idle, st_check_requests,
 		st_next_tile,
-		st_screen_wait,
-		st_end,
-		st_tilegen_clear, st_tilegen_clear_wait
+		st_wait_for_workers
 	);
-	signal state_drawing : drawing_state_type := st_wait;
+	signal state_tile, state_tile_next : state_tile_type := st_start;
 
-	----------------------------------------
+	type state_screen_type is (
+		st_start, st_wait_for_framebuffer_init,
+		st_idle, st_check_requests,
+		st_screen_write, st_screen_wait
+	);
+	signal state_screen, state_screen_next : state_screen_type;
 
-	signal rst : std_logic;
+	signal main_clk           : std_logic;
+	signal fb_initializer_clk : std_logic;
+	signal display_clk        : std_logic;
 
-	----------------------------------------
-
-	signal fb_initializer_enabled : std_logic := '1';
-
-	signal fb_clk        : std_logic;
-	signal fb_data_write : slv8_t;
-	signal fb_op_start   : std_logic;
-	signal fb_op         : fb_lo_level_op_type;
-	signal fb_op_done    : std_logic;
-
-	signal fb_initializer_clk        : std_logic;
-	signal fb_initializer_data_write : slv8_t;
-	signal fb_initializer_op_start   : std_logic;
-	signal fb_initializer_op         : fb_lo_level_op_type;
-
-	signal fb_disp_clk        : std_logic;
-	signal fb_disp_data_write : slv8_t;
-	signal fb_disp_op_start   : std_logic;
-	signal fb_disp_op         : fb_lo_level_op_type;
-
-	-- framebuffer display clear signals
-	signal fb_disp_clear       : std_logic := '0';
-	signal fb_disp_clear_color : color_t   := (others => X"00");
-
-	-- framebuffer display write control
-	signal fb_disp_start_write : std_logic := '0';
-	signal fb_disp_write_done  : std_logic;
-
-	-- framebuffer display out position, color input and window
-	signal screen_posx        : uint16_t;
-	signal screen_posy        : uint16_t;
-	signal screen_pixel_color : color_t;
-
-	signal screen_tile_rect    : rect_t;
-	signal fb_disp_window_rect : rect_t := FULLSCREEN_RECT;
-	----------------------
-
-	----------------------------------------
-
-	signal fb_data_read : slv8_t;
-
-	signal fb_init_start : std_logic := '0';
-	signal fb_init_done  : std_logic;
-
-	-----------------------------------------
-	signal tilegen_posx_out      : uint16_t;
-	signal tilegen_posy_out      : uint16_t;
-	signal tilegen_color_out     : color_t;
-	signal tilegen_put_pixel_out : std_logic;
-	signal tilegen_ready         : std_logic;
-	signal tilegen_start         : std_logic := '0';
-	signal tilegen_tile_num_in   : integer   := 0;
-
-	-----------------------------------------
-	signal tilebuf_clear      : std_logic := '0';
-	signal tilebuf_clear_done : std_logic;
-
-	signal depth_in   : int16_t;
-	signal depth_out  : int16_t;
-	signal depth_wren : std_logic;
-
+	signal rst        : std_logic;
 	signal pll_locked : std_logic;
 
-	signal enable_drawing : std_logic := '0';
+	signal tile_num : integer := 0;
+
+	-----------------------------------------
+
+	signal framebuffer_initialized                       : std_logic := '0';
+	signal fb_disp_window_rect, fb_disp_window_rect_next : rect_t;
 
 	signal measurment0_run   : std_logic := '0';
 	signal measurment0_value : uint32_t;
 	signal measurment0_done  : std_logic;
-	signal delay_counter     : integer;
 	signal measurment_send   : std_logic := '0';
 	signal printf0_val       : integer;
 
@@ -158,323 +96,349 @@ architecture behavioral of snf0 is
 	signal input_clk : std_logic := '0';
 	signal key       : keys_t;
 	signal rot       : point3d_t;
+	signal rot_next  : point3d_t;
 	signal scale     : int16_t;
+
+	signal tile_num_next : integer;
+
+	signal led_blink : std_logic;
+
+	signal fb_disp_start_write, fb_disp_start_write_next : std_logic;
+	signal fb_disp_write_done                            : std_logic;
+	signal posx_out, posy_out                            : uint16_t;
+	signal color_in                                      : color_t;
+
+	---------------------------------------------
+
+	type color_arr_t is array (natural range <>) of color_t;
+	type rect_arr_t is array (natural range <>) of rect_t;
+	type int_arr_t is array (natural range <>) of integer;
+
+	signal screen_request_p                                                    : std_logic_vector(num_processes - 1 downto 0);
+	signal screen_request_ready_p, screen_request_ready_p_next                 : std_logic_vector(num_processes - 1 downto 0);
+	signal color_in_p                                                          : color_arr_t(num_processes - 1 downto 0);
+	signal tile_num_request_p                                                  : std_logic_vector(num_processes - 1 downto 0);
+	signal tile_num_ready_p, tile_num_ready_p_next                             : std_logic_vector(num_processes - 1 downto 0) := (others => '0');
+	signal screen_ready_p, screen_ready_p_next                                 : std_logic_vector(num_processes - 1 downto 0) := (others => '0');
+	signal rects_p                                                             : rect_arr_t(num_processes - 1 downto 0);
+	signal current_displaying_renderer_id, current_displaying_renderer_id_next : integer;
+	signal tile_num_out_p, tile_num_out_p_next                                 : int_arr_t(num_processes - 1 downto 0);
+	signal working_p                                                           : std_logic_vector(num_processes - 1 downto 0);
+
+	signal tile_request_counter, tile_request_counter_next : integer             := 0;
+	signal bg_colors_p                                     : color_arr_t(0 to 5) := (COLOR_BLUE, COLOR_GREEN, COLOR_RED, COLOR_YELLOW, COLOR_MAGENTA, COLOR_CYAN);
+
+	signal start_mesh_renderer, start_mesh_renderer_next : std_logic := '0';
+
+	signal request_counter, request_counter_next : integer;
+	signal scale_next                            : int16_t;
 
 begin
 
 	pll0 : entity work.pll
 		port map(
-			areset => not rst,
+			areset => rst,
 			inclk0 => CLK_50,
 			c0     => fb_initializer_clk,
-			c1     => fb_disp_clk,
-			--			c2     => ,
+			c1     => main_clk,
+			c2     => display_clk,
 			locked => pll_locked
 		);
 
-	fb_lo_level_driver0 : entity work.fb_lo_level_driver
-		port map(
-			clk          => fb_clk,
-			rst          => not rst,
-			op_start     => fb_op_start,
-			op_done      => fb_op_done,
-			op_op        => fb_op,
-			data_in      => fb_data_write,
-			data_out     => fb_data_read,
-			VGA1_CS_n    => VGA1_CS_n,
-			VGA1_DC_n    => VGA1_DC_n,
-			VGA1_RD_n    => VGA1_RD_n,
-			VGA1_WR_n    => VGA1_WR_n,
-			VGA1_RESET_n => VGA1_RESET_n,
-			VGA1_R       => VGA1_R
-		);
+	mesh_renderer_processes : for i in 0 to num_processes - 1 generate
+	begin
+		mesh_renderer : entity work.mesh_renderer
+			port map(
+				clk                     => main_clk,
+				screen_clk              => display_clk,
+				rst                     => rst,
+				start_in                => start_mesh_renderer,
+				get_rect                => rects_p(i),
+				bg_color_in             => bg_colors_p(i),
+				-------------------------------
+				screen_request_out      => screen_request_p(i),
+				screen_request_ready_in => screen_request_ready_p(i),
+				screen_ready_in         => screen_ready_p(i),
+				screen_posx_in          => posx_out,
+				screen_posy_in          => posy_out,
+				screen_pixel_color_out  => color_in_p(i),
+				-------------------------------
+				task_request_out        => tile_num_request_p(i),
+				task_ready_in           => tile_num_ready_p(i),
+				task_tile_num_in        => tile_num_out_p(i),
+				working_out             => working_p(i),
+				-------------------------------
+				rot_in                  => rot,
+				scale_in                => scale
+			);
+	end generate;
 
-	fb_initializer0 : entity work.fb_initializer
+	framebuffer_driver0 : entity work.fb_driver
 		port map(
-			clk           => fb_initializer_clk,
-			rst           => rst,
-			start         => fb_init_start,
-			done          => fb_init_done,
-			fb_data_write => fb_initializer_data_write,
-			fb_op_start   => fb_initializer_op_start,
-			fb_op         => fb_initializer_op,
-			fb_op_done    => fb_op_done
-		);
-
-	fb_display0 : entity work.fb_display
-		port map(
-			posx_out      => screen_posx,
-			posy_out      => screen_posy,
-			color_in      => screen_pixel_color,
-			------------------------------------
-			fb_window     => fb_disp_window_rect,
-			clk           => fb_disp_clk,
-			rst           => rst,
-			start_write   => fb_disp_start_write,
-			write_done    => fb_disp_write_done,
-			do_clear      => fb_disp_clear,
-			clear_color   => fb_disp_clear_color,
-			fb_data_write => fb_disp_data_write,
-			fb_op_start   => fb_disp_op_start,
-			fb_op         => fb_disp_op,
-			fb_op_done    => fb_op_done,
-			fb_color_g    => VGA1_G,
-			fb_color_b    => VGA1_B
-		);
-
-	tile_buffer0 : entity work.tile_buffer
-		port map(
-			screen_clk        => fb_disp_clk,
-			screen_posx       => screen_posx,
-			screen_posy       => screen_posy,
-			color_out         => screen_pixel_color,
-			----------
-			tilegen_clk       => fb_disp_clk,
-			tilegen_posx      => tilegen_posx_out,
-			tilegen_posy      => tilegen_posy_out,
-			tilegen_put_pixel => tilegen_put_pixel_out,
-			color_in          => tilegen_color_out,
-			----------
-			rst               => not rst,
-			clear             => tilebuf_clear,
-			clear_done        => tilebuf_clear_done,
-			----------
-			depth_in          => depth_in,
-			depth_out         => depth_out,
-			clk50             => fb_disp_clk,
-			depth_wren        => depth_wren
-		);
-
-	tile_system0 : entity work.tile_system
-		port map(
-			clk           => fb_disp_clk,
-			rst           => not rst,
-			posx_out      => tilegen_posx_out,
-			posy_out      => tilegen_posy_out,
-			color_out     => tilegen_color_out,
-			put_pixel_out => tilegen_put_pixel_out,
-			tile_rect_out => screen_tile_rect,
-			ready_out     => tilegen_ready,
-			start_in      => tilegen_start,
-			tile_num_in   => tilegen_tile_num_in,
-			depth_in      => depth_in,
-			depth_out     => depth_out,
-			depth_wren    => depth_wren,
-			rot           => rot,
-			scale         => scale
+			display_clk     => display_clk,
+			initializer_clk => fb_initializer_clk,
+			rst             => rst,
+			-------------------------------
+			start_write     => fb_disp_start_write,
+			write_done      => fb_disp_write_done,
+			-------------------------------
+			posx_out        => posx_out,
+			posy_out        => posy_out,
+			color_in        => color_in,
+			fb_window_in    => fb_disp_window_rect,
+			-------------------------------
+			initialize      => pll_locked,
+			initialized     => framebuffer_initialized,
+			-------------------------------
+			VGA1_CS_n       => VGA1_CS_n,
+			VGA1_DC_n       => VGA1_DC_n,
+			VGA1_RD_n       => VGA1_RD_n,
+			VGA1_WR_n       => VGA1_WR_n,
+			VGA1_RESET_n    => VGA1_RESET_n,
+			VGA1_R          => VGA1_R,
+			VGA1_G          => VGA1_G,
+			VGA1_B          => VGA1_B
 		);
 
 	led_blinker0 : entity work.led_blinker
 		generic map(
-			frequency => 1.0            -- Hz
+			frequency => 2.0            -- Hz
 		)
 		port map(
 			clk50 => CLK_50,
-			rst   => not rst,
-			led   => LED(1)
+			rst   => rst,
+			led   => led_blink
 		);
 
-	measurment0 : entity work.single_measurment
-		port map(
-			clk   => CLK_50,
-			rst   => not rst,
-			run   => measurment0_run,
-			value => measurment0_value,
-			done  => measurment0_done
-		);
-
-	pritf0 : entity work.printf
-		port map(
-			send     => measurment_send,
-			clk      => CLK_50,
-			rst      => not rst,
-			uart_txd => UART_TXD,
-			val      => printf0_val
-		);
-
-	keyboard_inputs_0 : entity work.keyboard_inputs
-		port map(
-			clk      => CLK_50,
-			rst      => not rst,
-			ps2_clk  => PS2_CLK,
-			ps2_data => PS2_DATA,
-			keys      => key
-		);
-
-	input_handler_0 : entity work.input_handler
-		generic map(
-			rot_init   => point3d(0, 0, 0),
-			scale_init => int16(1)
-		)
-		port map(
-			input_clk => input_clk,
-			rst       => not rst,
-			keys       => key,
-			rot       => rot,
-			scale     => scale
-		);
+	--	measurment0 : entity work.single_measurment
+	--		port map(
+	--			clk   => CLK_50,
+	--			rst   => rst,
+	--			run   => measurment0_run,
+	--			value => measurment0_value,
+	--			done  => measurment0_done
+	--		);
+	--
+	--	pritf0 : entity work.printf
+	--		port map(
+	--			send     => measurment_send,
+	--			clk      => CLK_50,
+	--			rst      => rst,
+	--			uart_txd => UART_TXD,
+	--			val      => printf0_val
+	--		);
+	--
+	--	keyboard_inputs_0 : entity work.keyboard_inputs
+	--		port map(
+	--			clk      => CLK_50,
+	--			rst      => rst,
+	--			ps2_clk  => PS2_CLK,
+	--			ps2_data => PS2_DATA,
+	--			keys      => key
+	--		);
+	--
+	--	input_handler_0 : entity work.input_handler
+	--		generic map(
+	--			rot_init   => point3d(0, 0, 0),
+	--			scale_init => int16(1)
+	--		)
+	--		port map(
+	--			input_clk => input_clk,
+	--			rst       => rst,
+	--			keys       => key,
+	--			rot       => rot,
+	--			scale     => scale
+	--		);
 
 	LED(0) <= rst;
-	LED(2) <= xor_reduce(std_logic_vector(measurment0_value));
+	LED(1) <= led_blink;
 
-	rst <= BTN(0);
+	rst <= not BTN(0);
 
-	fb_clk        <= fb_initializer_clk when fb_initializer_enabled = '1' else fb_disp_clk;
-	fb_data_write <= fb_initializer_data_write when fb_initializer_enabled = '1' else fb_disp_data_write;
-	fb_op_start   <= fb_initializer_op_start when fb_initializer_enabled = '1' else fb_disp_op_start;
-	fb_op         <= fb_initializer_op when fb_initializer_enabled = '1' else fb_disp_op;
+	color_in <= color_in_p(current_displaying_renderer_id);
 
-	process(fb_initializer_clk, rst) is
+	process(display_clk, rst) is
 	begin
-		if not rst then
-			state_init <= st_start;
-		elsif rising_edge(fb_initializer_clk) then
-			case state_init is
-				when st_start =>
-					fb_initializer_enabled <= '1';
-					enable_drawing         <= '0';
-
-					if pll_locked then
-						state_init <= st_fb_init;
-					else
-						state_init <= st_start;
-					end if;
-
-				-- INIT FRAMEBUFFER
-
-				when st_fb_init =>
-					fb_init_start <= '1';
-					state_init    <= st_fb_init_wait;
-
-				when st_fb_init_wait =>
-					fb_init_start <= '0';
-					if fb_init_done then
-						fb_initializer_enabled <= '0';
-						enable_drawing         <= '1';
-						state_init             <= st_idle;
-					else
-						state_init <= st_fb_init_wait;
-					end if;
-
-				when st_idle =>
-					state_init <= st_idle;
-			end case;
+		if rst then
+			state_screen <= st_start;
+		elsif rising_edge(display_clk) then
+			fb_disp_window_rect            <= fb_disp_window_rect_next;
+			screen_ready_p                 <= screen_ready_p_next;
+			screen_request_ready_p         <= screen_request_ready_p_next;
+			fb_disp_start_write            <= fb_disp_start_write_next;
+			state_screen                   <= state_screen_next;
+			current_displaying_renderer_id <= current_displaying_renderer_id_next;
+			start_mesh_renderer            <= start_mesh_renderer_next;
+			request_counter                <= request_counter_next;
 		end if;
 	end process;
 
-	process(fb_disp_clk, rst) is
+	process(all) is
 	begin
-		if not rst then
-			state_drawing <= st_start;
-		elsif rising_edge(fb_disp_clk) then
-			case state_drawing is
+		fb_disp_window_rect_next            <= fb_disp_window_rect;
+		screen_ready_p_next                 <= screen_ready_p;
+		screen_request_ready_p_next         <= screen_request_ready_p;
+		fb_disp_start_write_next            <= fb_disp_start_write;
+		state_screen_next                   <= state_screen;
+		current_displaying_renderer_id_next <= current_displaying_renderer_id;
+		start_mesh_renderer_next            <= start_mesh_renderer;
+		request_counter_next                <= request_counter;
 
-				when st_start =>
-					fb_disp_start_write <= '0';
-					tilegen_start       <= '0';
-					tilegen_tile_num_in <= 0;
-					state_drawing       <= st_wait;
-					measurment0_run     <= '0';
-					delay_counter       <= 0;
+		case state_screen is
 
-				when st_delay =>
-					if delay_counter < DELAY_IN_TICKS then
-						state_drawing <= st_delay;
+			when st_start =>
+				screen_ready_p_next                 <= (others => '0');
+				screen_request_ready_p_next         <= (others => '0');
+				fb_disp_start_write_next            <= '0';
+				state_screen_next                   <= st_wait_for_framebuffer_init;
+				current_displaying_renderer_id_next <= 0;
+				start_mesh_renderer_next            <= '0';
+				request_counter_next                <= 0;
+
+			when st_wait_for_framebuffer_init =>
+				if framebuffer_initialized then
+					start_mesh_renderer_next <= '1';
+					state_screen_next        <= st_idle;
+				else
+					state_screen_next <= st_wait_for_framebuffer_init;
+				end if;
+
+			when st_idle =>
+				request_counter_next <= 1;
+
+				screen_ready_p_next         <= (others => '0');
+				screen_request_ready_p_next <= (others => '0');
+
+				if screen_request_p(0) then
+					current_displaying_renderer_id_next <= 0;
+					screen_request_ready_p_next(0)      <= '1';
+					state_screen_next                   <= st_screen_write;
+				else
+					state_screen_next <= st_check_requests;
+				end if;
+
+			when st_check_requests =>
+				if request_counter < num_processes then
+					request_counter_next <= request_counter + 1;
+					if screen_request_p(request_counter) then
+						current_displaying_renderer_id_next          <= request_counter;
+						screen_request_ready_p_next(request_counter) <= '1';
+						state_screen_next                            <= st_screen_write;
 					else
-						state_drawing <= st_wait;
+						state_screen_next <= st_check_requests;
 					end if;
+				else
+					request_counter_next <= 0;
+					state_screen_next    <= st_idle;
+				end if;
 
-				when st_wait =>
-					if enable_drawing then
-						state_drawing <= st_disp_clear;
-					else
-						state_drawing <= st_wait;
-					end if;
+			when st_screen_write =>
+				fb_disp_start_write_next    <= '1';
+				screen_ready_p_next         <= (others => '0');
+				screen_request_ready_p_next <= (others => '0');
+				fb_disp_window_rect_next    <= rects_p(current_displaying_renderer_id);
+				state_screen_next           <= st_screen_wait;
 
-				-- CLEAR SCREEN
+			when st_screen_wait =>
+				fb_disp_start_write_next <= '0';
+				if fb_disp_write_done then
+					screen_ready_p_next(current_displaying_renderer_id) <= '1';
+					state_screen_next                                   <= st_idle;
+				else
+					state_screen_next <= st_screen_wait;
+				end if;
 
-				when st_disp_clear =>
-					fb_disp_start_write <= '1';
-					fb_disp_clear       <= '1';
-					fb_disp_clear_color <= (r => X"00", g => X"00", b => X"FF");
-					fb_disp_window_rect <= FULLSCREEN_RECT;
-					state_drawing       <= st_disp_clear_wait;
+		end case;
 
-				when st_disp_clear_wait =>
-					fb_disp_start_write <= '0';
-					fb_disp_clear       <= '0';
+	end process;
 
-					if fb_disp_write_done then
-						state_drawing <= st_tilegen_clear;
-					else
-						state_drawing <= st_disp_clear_wait;
-					end if;
-
-				-- GENERATE TILE
-
-				when st_tilegen_clear =>
-					input_clk       <= '1';
-					measurment_send <= '0';
-					measurment0_run <= '1';
-					tilebuf_clear   <= '1';
-					state_drawing   <= st_tilegen_clear_wait;
-
-				when st_tilegen_clear_wait =>
-					tilebuf_clear <= '0';
-					if tilebuf_clear_done then
-						state_drawing <= st_init_tilegen;
-					else
-						state_drawing <= st_tilegen_clear_wait;
-					end if;
-
-				when st_init_tilegen =>
-					tilegen_start <= '1';
-					state_drawing <= st_tilegen_wait;
-
-				when st_tilegen_wait =>
-					tilegen_start <= '0';
-					if tilegen_ready then
-						state_drawing <= st_screen_write;
-					else
-						state_drawing <= st_tilegen_wait;
-					end if;
-
-				-- DISPLAY IMAGE
-
-				when st_screen_write =>
-					input_clk           <= '0';
-					fb_disp_clear       <= '0';
-					fb_disp_start_write <= '1';
-					state_drawing       <= st_screen_wait;
-					fb_disp_window_rect <= screen_tile_rect;
-
-				when st_screen_wait =>
-					fb_disp_start_write <= '0';
-					if fb_disp_write_done then
-						state_drawing <= st_next_tile;
-					else
-						state_drawing <= st_screen_wait;
-					end if;
-
-				-- TILE GENERATION MANAGEMENT
-
-				when st_next_tile =>
-					if tilegen_tile_num_in <= TILES_CNT - 2 then
-						tilegen_tile_num_in <= tilegen_tile_num_in + 1;
-						state_drawing       <= st_tilegen_clear;
-					else
-						tilegen_tile_num_in <= 0;
-						measurment0_run     <= '0';
-						measurment_send     <= '1';
-						printf0_val         <= to_integer(measurment0_value);
-
-						state_drawing <= st_tilegen_clear;
-					end if;
-
-				when st_end =>
-					null;
-			end case;
+	process(main_clk, rst) is
+	begin
+		if rst then
+			state_tile <= st_start;
+		elsif rising_edge(main_clk) then
+			tile_num             <= tile_num_next;
+			tile_num_ready_p     <= tile_num_ready_p_next;
+			tile_num_out_p       <= tile_num_out_p_next;
+			state_tile           <= state_tile_next;
+			rot                  <= rot_next;
+			scale                <= scale_next;
+			tile_request_counter <= tile_request_counter_next;
 		end if;
+	end process;
+
+	process(all) is
+	begin
+		tile_num_next             <= tile_num;
+		tile_num_ready_p_next     <= tile_num_ready_p;
+		tile_num_out_p_next       <= tile_num_out_p;
+		state_tile_next           <= state_tile;
+		rot_next                  <= rot;
+		scale_next                <= scale;
+		tile_request_counter_next <= tile_request_counter;
+		case state_tile is
+
+			when st_start =>
+				tile_num_next         <= 0;
+				tile_num_ready_p_next <= (others => '0');
+				tile_num_out_p_next   <= (others => 0);
+				rot_next              <= (others => int16(0));
+				scale_next            <= int16(1);
+				state_tile_next       <= st_idle;
+
+			when st_idle =>
+				tile_request_counter_next <= 1;
+
+				if tile_num_request_p(0) then
+					tile_num_out_p_next(0)   <= tile_num;
+					tile_num_ready_p_next(0) <= '1';
+					state_tile_next          <= st_next_tile;
+				else
+					state_tile_next <= st_check_requests;
+				end if;
+
+			when st_check_requests =>
+				if tile_request_counter < num_processes then
+					tile_request_counter_next <= tile_request_counter + 1;
+					if tile_num_request_p(tile_request_counter) then
+						tile_num_out_p_next(tile_request_counter)   <= tile_num;
+						tile_num_ready_p_next(tile_request_counter) <= '1';
+						state_tile_next                             <= st_next_tile;
+					else
+						state_tile_next <= st_check_requests;
+					end if;
+				else
+					tile_request_counter_next <= 0;
+					tile_num_ready_p_next     <= (others => '0');
+					state_tile_next           <= st_idle;
+				end if;
+
+			when st_next_tile =>
+				tile_num_ready_p_next <= (others => '0');
+				if tile_num < TILES_CNT then
+					tile_num_next   <= tile_num + 1;
+					state_tile_next <= st_idle;
+				else
+					if or_reduce(working_p) then
+						state_tile_next <= st_wait_for_workers;
+					else
+						rot_next.x      <= sel(rot.x = 359, int16(0), rot.x + 1);
+						rot_next.y      <= sel(rot.y = 359, int16(0), rot.y + 1);
+						rot_next.z      <= sel(rot.z = 359, int16(0), rot.z + 1);
+						scale_next      <= sel(scale = 255, int16(1), scale + 1);
+						tile_num_next   <= 0;
+						state_tile_next <= st_idle;
+					end if;
+				end if;
+
+			when st_wait_for_workers =>
+				if or_reduce(working_p) then
+					state_tile_next <= st_wait_for_workers;
+				else
+					state_tile_next <= st_next_tile;
+				end if;
+
+		end case;
 	end process;
 
 end architecture;

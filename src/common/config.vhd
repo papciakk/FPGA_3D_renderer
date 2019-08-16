@@ -6,16 +6,20 @@ use work.definitions.all;
 
 package config is
 
+	constant num_processes : integer := 1;
+
+	constant MODE_320_240 : boolean := false;
+
 	constant MAIN_CLK_MHZ : integer := 50;
 
 	constant BITS_PER_PIXEL : integer := 24;
 	constant DEPTH_BITS     : integer := 16;
 
-	constant TILE_RES_X : integer := 128;
-	constant TILE_RES_Y : integer := 120;
+	constant TILE_RES_X : integer := 64;
+	constant TILE_RES_Y : integer := 96;
 
-	constant FULLSCREEN_RES_X : integer := 640;
-	constant FULLSCREEN_RES_Y : integer := 480;
+	constant FULLSCREEN_RES_X : integer := sel(MODE_320_240, 320, 640);
+	constant FULLSCREEN_RES_Y : integer := sel(MODE_320_240, 240, 480);
 	
 	----------------------------------------------------------------
 
@@ -40,5 +44,8 @@ package config is
 	constant COLOR_RED   : color_t := (r => X"FF", others => X"00");
 	constant COLOR_GREEN : color_t := (g => X"FF", others => X"00");
 	constant COLOR_BLUE  : color_t := (b => X"FF", others => X"00");
+	constant COLOR_YELLOW  : color_t := (r => X"FF", g => X"FF", b => X"00");
+	constant COLOR_MAGENTA  : color_t := (r => X"FF", g => X"00", b => X"FF");
+	constant COLOR_CYAN  : color_t := (r => X"00", g => X"FF", b => X"FF");
 
 end package config;

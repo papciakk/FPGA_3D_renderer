@@ -60,14 +60,23 @@ architecture rtl of fb_initializer is
 		(op_wr_cmd, X"E0"),             -- set_pll
 		(op_wr_dat, X"01"),             -- enable PLL
 
-		(op_waitms, X"01"),             -- wait 1ms
+		(op_waitms, X"0A"),             -- wait 10ms
 
 		(op_wr_cmd, X"E0"),             -- set_pll
 		(op_wr_dat, X"03"),             -- lock PLL
+		
+		(op_waitms, X"0A"),             -- wait 10ms
 
 		(op_wr_cmd, X"01"),             -- soft_reset
+		
+		(op_waitms, X"64"),             -- wait 100ms
 
 		---------------------------------------------------------
+
+		(op_wr_cmd, X"E6"),             -- set_lshift_freq
+		(op_wr_dat, X"03"),             -- for main clock = 100MHz
+		(op_wr_dat, X"FF"),             -- pixel clock = 100MHz * ((LCDC_FPR+1)/2^20) = 25.175MHz
+		(op_wr_dat, X"FF"),             -- LCDC_FPR = 263978
 
 		(op_wr_cmd, X"B0"),             -- set_lcd_mode
 		(op_wr_dat, X"20"),             -- 24-bit output interface
@@ -77,14 +86,6 @@ architecture rtl of fb_initializer is
 		(op_wr_dat, X"01"),             -- panel height = 479 + 1
 		(op_wr_dat, X"DF"),             -- 
 		(op_wr_dat, X"00"),             -- even & odd line in RGB order
-
-		(op_wr_cmd, X"F0"),             -- set_pixel_data_interface
-		(op_wr_dat, X"05"),             -- 24 bit
-
-		(op_wr_cmd, X"E6"),             -- set_lshift_freq
-		(op_wr_dat, X"03"),             -- for main clock = 100MHz
-		(op_wr_dat, X"FF"),             -- pixel clock = 100MHz * ((LCDC_FPR+1)/2^20) = 25.175MHz
-		(op_wr_dat, X"FF"),             -- LCDC_FPR = 263978
 
 		(op_wr_cmd, X"B4"),             -- set_hori_period
 		(op_wr_dat, X"03"),             -- HT = 640 + 48 + 16 + 96 - 1 = 799
@@ -104,6 +105,9 @@ architecture rtl of fb_initializer is
 		(op_wr_dat, X"01"),             -- VPW = 2 - 1 = 1
 		(op_wr_dat, X"00"),             -- FPS = 0
 		(op_wr_dat, X"00"),             -- FPS
+		
+		(op_wr_cmd, X"F0"),             -- set_pixel_data_interface
+		(op_wr_dat, X"05"),             -- 24 bit
 
 		(op_wr_cmd, X"2A"),             -- set_column_address
 		(op_wr_dat, X"00"),             -- SC = 0
@@ -116,6 +120,8 @@ architecture rtl of fb_initializer is
 		(op_wr_dat, X"00"),             -- SP
 		(op_wr_dat, X"01"),             -- EP = 480 - 1 = 479
 		(op_wr_dat, X"DF"),             -- EP
+		
+		(op_waitms, X"01"),             -- wait 1ms
 		
 		---------------------------------------------------------
 
@@ -130,12 +136,12 @@ architecture rtl of fb_initializer is
 		
 		---------------------------------------------------------
 		
-		(op_wr_cmd, X"B8"),             
+		(op_wr_cmd, X"B8"),     		-- set GPIO config        
 		(op_wr_dat, "00001111"),             
 		(op_wr_dat, "00000001"),            
 		
-		(op_wr_cmd, X"BA"),             
-		(op_wr_dat, "00000010"), 
+		(op_wr_cmd, X"BA"),        		-- set GPIO value     
+		(op_wr_dat, "00000010"),
 
 		(op_wr_cmd, X"2C")              -- write_memory_start
 	);
@@ -147,7 +153,7 @@ begin
 
 	process(clk, rst) is
 	begin
-		if not rst then
+		if rst then
 			done  <= '0';
 			state <= st_idle;
 		elsif rising_edge(clk) then

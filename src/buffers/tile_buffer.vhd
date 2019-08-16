@@ -18,6 +18,7 @@ entity tile_buffer is
 		tilegen_posy      : in  uint16_t;
 		tilegen_put_pixel : in  std_logic;
 		color_in          : in  color_t;
+		clear_color : in color_t;
 		---------------------------------------------------
 		rst               : in  std_logic;
 		clear             : in  std_logic;
@@ -25,14 +26,13 @@ entity tile_buffer is
 		---------------------------------------------------
 		depth_in          : in  int16_t;
 		depth_out         : out int16_t;
-		clk50             : in  std_logic;
 		depth_wren        : in  std_logic
 	);
 end entity tile_buffer;
 
 architecture RTL of tile_buffer is
 
-	constant TILE_SIZE : integer := (TILE_RES_X) * (TILE_RES_Y + 1);
+	constant TILE_SIZE : integer := (TILE_RES_X) * (TILE_RES_Y);
 
 	signal color_out_raw : std_logic_vector((BITS_PER_PIXEL - 1) DOWNTO 0);
 	signal color_in_raw  : std_logic_vector((BITS_PER_PIXEL - 1) DOWNTO 0);
@@ -57,9 +57,9 @@ architecture RTL of tile_buffer is
 
 begin
 
-	color_in_raw(7 downto 0)   <= X"00" when clear_mode else color_in.b;
-	color_in_raw(15 downto 8)  <= X"00" when clear_mode else color_in.g;
-	color_in_raw(23 downto 16) <= X"00" when clear_mode else color_in.r;
+	color_in_raw(7 downto 0)   <= clear_color.b when clear_mode else color_in.b;
+	color_in_raw(15 downto 8)  <= clear_color.g when clear_mode else color_in.g;
+	color_in_raw(23 downto 16) <= clear_color.r when clear_mode else color_in.r;
 
 	ram_addr_wr <= clear_addr_wr when clear_mode else to_integer(tilegen_posy * TILE_RES_X + tilegen_posx);
 
@@ -89,7 +89,7 @@ begin
 			WORDS      => TILE_RES_X * TILE_RES_Y
 		)
 		port map(
-			clk   => clk50,
+			clk   => tilegen_clk,
 			raddr => ram_addr_wr,
 			waddr => ram_addr_wr,
 			data  => depth_in_raw,
