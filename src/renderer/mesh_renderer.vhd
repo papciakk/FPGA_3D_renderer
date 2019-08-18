@@ -16,6 +16,7 @@ entity mesh_renderer is
 		working_out             : out std_logic;
 		--------------------------------------------
 		rot_in                  : in  point3d_t;
+		rot_light_in            : in  point3d_t;
 		scale_in                : in  int16_t;
 		bg_color_in             : in  color_t;
 		--------------------------------------------
@@ -127,6 +128,7 @@ begin
 			depth_wren_out     => depth_wren,
 			--------------------------------------------
 			rot_in             => rot_in,
+			rot_light_in       => rot_light_in,
 			scale_in           => scale_in
 		);
 

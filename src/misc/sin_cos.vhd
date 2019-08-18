@@ -32,27 +32,4 @@ begin
 	cosine_angle <= (90 - angle) when angle <= 90 else (90 - angle + 360);
 	sine         <= sin_lut(to_integer(angle));
 	cosine       <= sin_lut(to_integer(cosine_angle));
-
-	--	process(clk, rst)
-	--	begin
-	--		if (rst = '1') then
-	--			sin_out <= (others => '0');
-	--			cos_out <= (others => '0');
-	--		elsif rising_edge(clk) then
-	--			if angle >= 270 then
-	--				sin_out <= -sin_lut(to_integer(360 - angle));
-	--				cos_out <= sin_lut(to_integer(angle - 270));
-	--			elsif angle >= 180 then
-	--				sin_out <= -sin_lut(to_integer(angle - 180));
-	--				cos_out <= -sin_lut(to_integer(270 - angle));
-	--			elsif angle >= 90 then
-	--				sin_out <= sin_lut(to_integer(180 - angle));
-	--				cos_out <= -sin_lut(to_integer(angle - 90));
-	--			else
-	--				sin_out <= sin_lut(to_integer(angle));
-	--				cos_out <= sin_lut(to_integer(90 - angle));
-	--			end if;
-	--		end if;
-	--	end process;
-
 end architecture rtl;

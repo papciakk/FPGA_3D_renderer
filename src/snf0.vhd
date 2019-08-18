@@ -93,11 +93,11 @@ architecture behavioral of snf0 is
 
 	-----------------------------------------
 
-	signal input_clk : std_logic := '0';
-	signal key       : keys_t;
-	signal rot       : point3d_t;
-	signal rot_next  : point3d_t;
-	signal scale     : int16_t;
+	signal input_clk                 : std_logic := '0';
+	signal key                       : keys_t;
+	signal rot, rot_next             : point3d_t;
+	signal rot_light, rot_light_next : point3d_t;
+	signal scale                     : int16_t;
 
 	signal tile_num_next : integer;
 
@@ -133,6 +133,10 @@ architecture behavioral of snf0 is
 	signal request_counter, request_counter_next : integer;
 	signal scale_next                            : int16_t;
 
+	signal measurement_step        : std_logic;
+	signal measurement_value       : integer;
+	signal measurement_value_ready : std_logic;
+
 begin
 
 	pll0 : entity work.pll
@@ -152,8 +156,10 @@ begin
 				clk                     => main_clk,
 				screen_clk              => display_clk,
 				rst                     => rst,
+				-------------------------------
 				start_in                => start_mesh_renderer,
 				get_rect                => rects_p(i),
+				-------------------------------
 				bg_color_in             => bg_colors_p(i),
 				-------------------------------
 				screen_request_out      => screen_request_p(i),
@@ -169,6 +175,7 @@ begin
 				working_out             => working_p(i),
 				-------------------------------
 				rot_in                  => rot,
+				rot_light_in            => rot_light,
 				scale_in                => scale
 			);
 	end generate;
@@ -210,24 +217,24 @@ begin
 			led   => led_blink
 		);
 
-	--	measurment0 : entity work.single_measurment
-	--		port map(
-	--			clk   => CLK_50,
-	--			rst   => rst,
-	--			run   => measurment0_run,
-	--			value => measurment0_value,
-	--			done  => measurment0_done
-	--		);
-	--
-	--	pritf0 : entity work.printf
-	--		port map(
-	--			send     => measurment_send,
-	--			clk      => CLK_50,
-	--			rst      => rst,
-	--			uart_txd => UART_TXD,
-	--			val      => printf0_val
-	--		);
-	--
+	measurement0 : entity work.continous_measurement
+		port map(
+			clk         => main_clk,
+			rst         => rst,
+			step        => measurement_step,
+			value       => measurement_value,
+			value_ready => measurement_value_ready
+		);
+
+	pritf0 : entity work.printf
+		port map(
+			clk      => CLK_50,
+			rst      => rst,
+			uart_txd => UART_TXD,
+			send     => measurement_value_ready,
+			val      => measurement_value
+		);
+
 	--	keyboard_inputs_0 : entity work.keyboard_inputs
 	--		port map(
 	--			clk      => CLK_50,
@@ -362,6 +369,7 @@ begin
 			tile_num_out_p       <= tile_num_out_p_next;
 			state_tile           <= state_tile_next;
 			rot                  <= rot_next;
+			rot_light            <= rot_light_next;
 			scale                <= scale_next;
 			tile_request_counter <= tile_request_counter_next;
 		end if;
@@ -374,19 +382,23 @@ begin
 		tile_num_out_p_next       <= tile_num_out_p;
 		state_tile_next           <= state_tile;
 		rot_next                  <= rot;
+		rot_light_next            <= rot_light;
 		scale_next                <= scale;
 		tile_request_counter_next <= tile_request_counter;
 		case state_tile is
 
 			when st_start =>
+				measurement_step      <= '0';
 				tile_num_next         <= 0;
 				tile_num_ready_p_next <= (others => '0');
 				tile_num_out_p_next   <= (others => 0);
-				rot_next              <= (others => int16(0));
+				rot_next              <= point3d(0, 0, 0);
+				rot_light_next        <= point3d(0, 0, 0);
 				scale_next            <= int16(1);
 				state_tile_next       <= st_idle;
 
 			when st_idle =>
+				measurement_step          <= '0';
 				tile_request_counter_next <= 1;
 
 				if tile_num_request_p(0) then
@@ -398,6 +410,7 @@ begin
 				end if;
 
 			when st_check_requests =>
+				measurement_step <= '0';
 				if tile_request_counter < num_processes then
 					tile_request_counter_next <= tile_request_counter + 1;
 					if tile_num_request_p(tile_request_counter) then
@@ -414,6 +427,7 @@ begin
 				end if;
 
 			when st_next_tile =>
+				measurement_step      <= '0';
 				tile_num_ready_p_next <= (others => '0');
 				if tile_num < TILES_CNT then
 					tile_num_next   <= tile_num + 1;
@@ -422,16 +436,23 @@ begin
 					if or_reduce(working_p) then
 						state_tile_next <= st_wait_for_workers;
 					else
+						rot_next        <= point3d(0, 0, 0);
+						scale_next      <= int16(255);
+						--						rot_light_next.y <= sel(rot_light.y = 359, int16(0), rot_light.y + 1);
+						--						rot_light_next.x <= sel(rot_light.x = 359, int16(0), rot_light.x + 1);
 						rot_next.x      <= sel(rot.x = 359, int16(0), rot.x + 1);
-						rot_next.y      <= sel(rot.y = 359, int16(0), rot.y + 1);
-						rot_next.z      <= sel(rot.z = 359, int16(0), rot.z + 1);
-						scale_next      <= sel(scale = 255, int16(1), scale + 1);
+						--						rot_next.y       <= sel(rot.y = 359, int16(0), rot.y + 1);
+						--						rot_next.z       <= sel(rot.z = 359, int16(0), rot.z + 1);
+						--						scale_next       <= sel(scale = 255, int16(1), scale + 1);
 						tile_num_next   <= 0;
 						state_tile_next <= st_idle;
+
+						measurement_step <= '1';
 					end if;
 				end if;
 
 			when st_wait_for_workers =>
+				measurement_step <= '0';
 				if or_reduce(working_p) then
 					state_tile_next <= st_wait_for_workers;
 				else

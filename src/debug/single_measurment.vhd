@@ -1,7 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
-use work.stdint.all; 
+use work.stdint.all;
 
 entity single_measurment is
 	port(
@@ -36,7 +36,7 @@ begin
 						state <= st_idle;
 					end if;
 				when st_run =>
-					if run  then
+					if run then
 						counter <= counter + 1;
 						state   <= st_run;
 					else

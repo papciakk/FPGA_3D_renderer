@@ -28,11 +28,14 @@ entity tile_renderer is
 		depth_wren_out     : out std_logic;
 		-----------------------------------
 		rot_in             : in  point3d_t;
+		rot_light_in       : in  point3d_t;
 		scale_in           : in  int16_t
 	);
 end entity;
 
 architecture rtl of tile_renderer is
+
+	constant light_dir_starting : point3d_t := point3d(0, 0, -512);
 
 	signal triangle_id, triangle_id_next : integer := 0;
 
@@ -52,33 +55,39 @@ architecture rtl of tile_renderer is
 
 	---------------------------------------------------------------
 
-	signal sine   : int16_t;
-	signal cosine : int16_t;
-	signal angle  : int16_t;
+	signal angle, angle_next : int16_t;
+	signal sine, cosine : int16_t;
 
-	signal rh_in01, rh_in02, rh_in03, rh_in04     : int16_t;
-	signal rh_in11, rh_in12, rh_in13, rh_in14     : int16_t;
-	signal rh_in21, rh_in22, rh_in23, rh_in24     : int16_t;
-	signal rh_trig1, rh_trig2, rh_trig3, rh_trig4 : int16_t;
-	signal rh_out01, rh_out02                     : int16_t;
-	signal rh_out11, rh_out12                     : int16_t;
-	signal rh_out21, rh_out22                     : int16_t;
+	signal rh_shift                                                   : int8_t;
+	signal rh_in01, rh_in02, rh_in03, rh_in04                         : int16_t;
+	signal rh_in11, rh_in12, rh_in13, rh_in14                         : int16_t;
+	signal rh_in21, rh_in22, rh_in23, rh_in24                         : int16_t;
+	signal rh_trig1, rh_trig2, rh_trig3, rh_trig4                     : int16_t;
+	signal rh_out01, rh_out02                                         : int16_t;
+	signal rh_out11, rh_out12                                         : int16_t;
+	signal rh_out21, rh_out22                                         : int16_t;
+	signal rh_shift_next                                              : int8_t;
+	signal rh_in01_next, rh_in02_next, rh_in03_next, rh_in04_next     : int16_t;
+	signal rh_in11_next, rh_in12_next, rh_in13_next, rh_in14_next     : int16_t;
+	signal rh_in21_next, rh_in22_next, rh_in23_next, rh_in24_next     : int16_t;
+	signal rh_trig1_next, rh_trig2_next, rh_trig3_next, rh_trig4_next : int16_t;
 
 	---------------------------------------------------------------
 
-	signal light_dir       : point3d_t := (int16(0), int16(0), int16(-512));
-	signal ambient_diffuse : int16_t   := int16(20);
+	signal light_dir, light_dir_next : point3d_t;
+	signal ambient_diffuse           : int16_t := int16(20);
 
 	---------------------------------------------------------------
 
 	type state_type is (
 		st_start, st_idle, st_calc_area_prepare_parameters, st_next_triangle,
 		st_prepare_triangle_verts,
-		st_rot_x, st_rot_y, st_rot_z, st_calc_scale,
-		st_rescale_attributes,
+		st_prepare_rot_x, st_get_rot_x_prepare_rot_y, st_get_rot_y_prepare_rot_z, st_get_rot_z, 
+		st_calc_scale, st_rescale_attributes,
 		st_calc_lighting, st_wait_for_rasterizer
 	);
 	signal state, state_next : state_type := st_start;
+
 begin
 
 	sin_cos_0 : entity work.sin_cos
@@ -90,6 +99,8 @@ begin
 
 	rotation_helper0 : entity work.rotation_helper
 		port map(
+			clk   => clk,
+			shift => rh_shift,
 			in01  => rh_in01, in02 => rh_in02, in03 => rh_in03, in04 => rh_in04,
 			in11  => rh_in11, in12 => rh_in12, in13 => rh_in13, in14 => rh_in14,
 			in21  => rh_in21, in22 => rh_in22, in23 => rh_in23, in24 => rh_in24,
@@ -131,17 +142,39 @@ begin
 			attr0            <= attr0_next;
 			attr1            <= attr1_next;
 			attr2            <= attr2_next;
+			light_dir        <= light_dir_next;
 			start_rasterizer <= start_rasterizer_next;
 			triangle         <= triangle_next;
 			area             <= area_next;
 			colors           <= colors_next;
 			depths           <= depths_next;
+--			angle            <= angle_next;
+			rh_shift         <= rh_shift_next;
+			rh_in01          <= rh_in01_next;
+			rh_in02          <= rh_in02_next;
+			rh_in03          <= rh_in03_next;
+			rh_in04          <= rh_in04_next;
+			rh_in11          <= rh_in11_next;
+			rh_in12          <= rh_in12_next;
+			rh_in13          <= rh_in13_next;
+			rh_in14          <= rh_in14_next;
+			rh_in21          <= rh_in21_next;
+			rh_in22          <= rh_in22_next;
+			rh_in23          <= rh_in23_next;
+			rh_in24          <= rh_in24_next;
+			rh_trig1         <= rh_trig1_next;
+			rh_trig2         <= rh_trig2_next;
+			rh_trig3         <= rh_trig3_next;
+			rh_trig4         <= rh_trig4_next;
 		end if;
 	end process;
 
 	process(all) is
 		variable triangle_v : triangle2d_t;
 		variable area_v     : int16_t;
+		variable attr0posx, attr0posy, attr0posz : int16_t;
+		variable attr1posx, attr1posy, attr1posz : int16_t;
+		variable attr2posx, attr2posy, attr2posz : int16_t;
 	begin
 		state_next            <= state;
 		triangle_id_next      <= triangle_id;
@@ -150,11 +183,30 @@ begin
 		attr0_next            <= attr0;
 		attr1_next            <= attr1;
 		attr2_next            <= attr2;
+		light_dir_next        <= light_dir;
 		start_rasterizer_next <= start_rasterizer;
 		triangle_next         <= triangle;
 		area_next             <= area;
 		colors_next           <= colors;
 		depths_next           <= depths;
+--		angle_next            <= angle;
+		rh_shift_next         <= rh_shift;
+		rh_in01_next          <= rh_in01;
+		rh_in02_next          <= rh_in02;
+		rh_in03_next          <= rh_in03;
+		rh_in04_next          <= rh_in04;
+		rh_in11_next          <= rh_in11;
+		rh_in12_next          <= rh_in12;
+		rh_in13_next          <= rh_in13;
+		rh_in14_next          <= rh_in14;
+		rh_in21_next          <= rh_in21;
+		rh_in22_next          <= rh_in22;
+		rh_in23_next          <= rh_in23;
+		rh_in24_next          <= rh_in24;
+		rh_trig1_next         <= rh_trig1;
+		rh_trig2_next         <= rh_trig2;
+		rh_trig3_next         <= rh_trig3;
+		rh_trig4_next         <= rh_trig4;
 
 		case state is
 
@@ -175,109 +227,139 @@ begin
 
 			when st_prepare_triangle_verts =>
 				ready_out_next <= '0';
+				light_dir_next <= light_dir_starting;
 				attr0_next     <= vertices(to_integer(indices(triangle_id).a));
 				attr1_next     <= vertices(to_integer(indices(triangle_id).b));
 				attr2_next     <= vertices(to_integer(indices(triangle_id).c));
 
-				state_next <= st_rot_x;
+				state_next <= st_prepare_rot_x;
 
-			when st_rot_x =>
+			when st_prepare_rot_x =>
 				-- x' = x
 				-- y' = y * cos(x) - z * sin(x)
 				-- z' = y * sin(x) + z * cos(x)
 
-				angle <= rot_in.x;
+				angle            <= rot_in.x;
+				rh_shift_next         <= int8(13);
+				rh_in01_next          <= attr0.pos.y;
+				rh_in02_next          <= -attr0.pos.z;
+				rh_in03_next          <= attr0.pos.y;
+				rh_in04_next          <= attr0.pos.z;
+				rh_in11_next          <= attr1.pos.y;
+				rh_in12_next          <= -attr1.pos.z;
+				rh_in13_next          <= attr1.pos.y;
+				rh_in14_next          <= attr1.pos.z;
+				rh_in21_next          <= attr2.pos.y;
+				rh_in22_next          <= -attr2.pos.z;
+				rh_in23_next          <= attr2.pos.y;
+				rh_in24_next          <= attr2.pos.z;
+				rh_trig1_next         <= cosine;
+				rh_trig2_next         <= sine;
+				rh_trig3_next         <= sine;
+				rh_trig4_next         <= cosine;
 
-				rh_in01          <= attr0.pos.y;
-				rh_in02          <= -attr0.pos.z;
-				rh_in03          <= attr0.pos.y;
-				rh_in04          <= attr0.pos.z;
-				rh_in11          <= attr1.pos.y;
-				rh_in12          <= -attr1.pos.z;
-				rh_in13          <= attr1.pos.y;
-				rh_in14          <= attr1.pos.z;
-				rh_in21          <= attr2.pos.y;
-				rh_in22          <= -attr2.pos.z;
-				rh_in23          <= attr2.pos.y;
-				rh_in24          <= attr2.pos.z;
-				rh_trig1         <= cosine;
-				rh_trig2         <= sine;
-				rh_trig3         <= sine;
-				rh_trig4         <= cosine;
+				state_next <= st_get_rot_x_prepare_rot_y;
+
+			when st_get_rot_x_prepare_rot_y =>
+				attr0posz := rh_out02;
+				attr1posz := rh_out12;
+				attr2posz := rh_out22;
+				
 				attr0_next.pos.y <= rh_out01;
-				attr0_next.pos.z <= rh_out02;
+				attr0_next.pos.z <= attr0posz;
 				attr1_next.pos.y <= rh_out11;
-				attr1_next.pos.z <= rh_out12;
+				attr1_next.pos.z <= attr1posz;
 				attr2_next.pos.y <= rh_out21;
-				attr2_next.pos.z <= rh_out22;
-
-				state_next <= st_rot_y;
-
-			when st_rot_y =>
+				attr2_next.pos.z <= attr2posz;
+				
 				-- x' = z * sin(y) + x * cos(y)
 				-- y' = y
 				-- z' = z * cos(y) - x * sin(y)
 
-				angle <= rot_in.y;
+				angle            <= rot_in.y;
+				rh_shift_next         <= int8(13);
+				rh_in01_next          <= attr0posz;
+				rh_in02_next          <= attr0.pos.x;
+				rh_in03_next          <= attr0posz;
+				rh_in04_next          <= -attr0.pos.x;
+				rh_in11_next          <= attr1posz;
+				rh_in12_next          <= attr1.pos.x;
+				rh_in13_next          <= attr1posz;
+				rh_in14_next          <= -attr1.pos.x;
+				rh_in21_next          <= attr2posz;
+				rh_in22_next          <= attr2.pos.x;
+				rh_in23_next          <= attr2posz;
+				rh_in24_next          <= -attr2.pos.x;
+				rh_trig1_next         <= sine;
+				rh_trig2_next         <= cosine;
+				rh_trig3_next         <= cosine;
+				rh_trig4_next         <= sine;
 
-				rh_in01          <= attr0.pos.z;
-				rh_in02          <= attr0.pos.x;
-				rh_in03          <= attr0.pos.z;
-				rh_in04          <= -attr0.pos.x;
-				rh_in11          <= attr1.pos.z;
-				rh_in12          <= attr1.pos.x;
-				rh_in13          <= attr1.pos.z;
-				rh_in14          <= -attr1.pos.x;
-				rh_in21          <= attr2.pos.z;
-				rh_in22          <= attr2.pos.x;
-				rh_in23          <= attr2.pos.z;
-				rh_in24          <= -attr2.pos.x;
-				rh_trig1         <= sine;
-				rh_trig2         <= cosine;
-				rh_trig3         <= cosine;
-				rh_trig4         <= sine;
-				attr0_next.pos.x <= rh_out01;
+				state_next <= st_get_rot_y_prepare_rot_z;
+
+			when st_get_rot_y_prepare_rot_z =>
+				attr0posx := rh_out01;
+				attr1posx := rh_out11;
+				attr2posx := rh_out21;
+				
+				attr0_next.pos.x <= attr0posx;
 				attr0_next.pos.z <= rh_out02;
-				attr1_next.pos.x <= rh_out11;
+				attr1_next.pos.x <= attr1posx;
 				attr1_next.pos.z <= rh_out12;
-				attr2_next.pos.x <= rh_out21;
+				attr2_next.pos.x <= attr2posx;
 				attr2_next.pos.z <= rh_out22;
-
-				state_next <= st_rot_z;
-
-			when st_rot_z =>
+				
 				-- x' = x * cos(z) - y * sin(z)
 				-- y' = x * sin(z) + y * cos(z)
 				-- z' = z
 
-				angle <= rot_in.z;
+				angle            <= rot_in.z;
+				rh_shift_next         <= int8(13);
+				rh_in01_next          <= attr0posx;
+				rh_in02_next          <= -attr0.pos.y;
+				rh_in03_next          <= attr0posx;
+				rh_in04_next          <= attr0.pos.y;
+				rh_in11_next          <= attr1posx;
+				rh_in12_next          <= -attr1.pos.y;
+				rh_in13_next          <= attr1posx;
+				rh_in14_next          <= attr1.pos.y;
+				rh_in21_next          <= attr2posx;
+				rh_in22_next          <= -attr2.pos.y;
+				rh_in23_next          <= attr2posx;
+				rh_in24_next          <= attr2.pos.y;
+				rh_trig1_next         <= cosine;
+				rh_trig2_next         <= sine;
+				rh_trig3_next         <= sine;
+				rh_trig4_next         <= cosine;
 
-				rh_in01          <= attr0.pos.x;
-				rh_in02          <= -attr0.pos.y;
-				rh_in03          <= attr0.pos.x;
-				rh_in04          <= attr0.pos.y;
-				rh_in11          <= attr1.pos.x;
-				rh_in12          <= -attr1.pos.y;
-				rh_in13          <= attr1.pos.x;
-				rh_in14          <= attr1.pos.y;
-				rh_in21          <= attr2.pos.x;
-				rh_in22          <= -attr2.pos.y;
-				rh_in23          <= attr2.pos.x;
-				rh_in24          <= attr2.pos.y;
-				rh_trig1         <= cosine;
-				rh_trig2         <= sine;
-				rh_trig3         <= sine;
-				rh_trig4         <= cosine;
+				state_next <= st_get_rot_z;
+				
+			when st_get_rot_z =>
 				attr0_next.pos.x <= rh_out01;
 				attr0_next.pos.y <= rh_out02;
 				attr1_next.pos.x <= rh_out11;
 				attr1_next.pos.y <= rh_out12;
 				attr2_next.pos.x <= rh_out21;
 				attr2_next.pos.y <= rh_out22;
-
+				
+				-- prepare for calc of light rotation around x
+				angle            <= rot_light_in.x;
+				rh_shift_next         <= int8(13);
+				rh_in01_next          <= light_dir.y;
+				rh_in02_next          <= -light_dir.z;
+				rh_in03_next          <= light_dir.y;
+				rh_in04_next          <= light_dir.z;
+				rh_trig1_next         <= cosine;
+				rh_trig2_next         <= sine;
+				rh_trig3_next         <= sine;
+				rh_trig4_next         <= cosine;
+				
 				state_next <= st_calc_scale;
 
 			when st_calc_scale =>
+				light_dir_next.y <= rh_out01;
+				light_dir_next.z <= rh_out02;
+				
 				-- x' = x * scale / 256
 				-- y' = y * scale / 256
 				-- z' = z
@@ -294,9 +376,23 @@ begin
 				attr1_next.pos        <= rescale_vertices(attr1.pos);
 				attr2_next.pos        <= rescale_vertices(attr2.pos);
 
+				angle            <= rot_light_in.y;
+				rh_shift_next         <= int8(13);
+				rh_in01_next          <= light_dir.z;
+				rh_in02_next          <= light_dir.x;
+				rh_in03_next          <= light_dir.z;
+				rh_in04_next          <= -light_dir.x;
+				rh_trig1_next         <= sine;
+				rh_trig2_next         <= cosine;
+				rh_trig3_next         <= cosine;
+				rh_trig4_next         <= sine;
+
 				state_next <= st_calc_area_prepare_parameters;
 
 			when st_calc_area_prepare_parameters =>
+				light_dir_next.x <= rh_out01;
+				light_dir_next.z <= rh_out02;
+				
 				ready_out_next        <= '0';
 				start_rasterizer_next <= '0';
 
