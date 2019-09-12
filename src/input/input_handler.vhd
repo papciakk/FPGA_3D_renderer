@@ -7,8 +7,9 @@ use work.keyboard_inc.all;
 
 entity input_handler is
 	generic(
-		rot_init   : point3d_t := point3d(0, 0, 0);
-		scale_init : int16_t   := int16(1)
+		rot_init       : point3d_t := point3d(0, 0, 0);
+		rot_light_init : point2d_t := point2d(0, 0);
+		scale_init     : int16_t   := int16(1)
 	);
 
 	port(
@@ -16,15 +17,13 @@ entity input_handler is
 		rst       : in  std_logic;
 		keys      : in  keys_t;
 		rot       : out point3d_t := rot_init;
+		rot_light : out point2d_t := rot_light_init;
 		scale     : out int16_t   := scale_init
-		--update_rot   : out std_logic := '1'
 	);
 end entity input_handler;
 
 architecture rtl of input_handler is
 begin
-
-	--	update_rot <= start or key(KEY_W) or key(KEY_S) or key(KEY_A) or key(KEY_D) or key(KEY_Q) or key(KEY_E);
 
 	process(input_clk, rst) is
 	begin
@@ -51,10 +50,22 @@ begin
 				rot.z <= sel(rot.z > 0, rot.z - 1, int16(360));
 			end if;
 			if keys(KEY_Z) = '1' then
-				scale <= sel(scale < 23, scale + 1, int16(23));
+				scale <= sel(scale <= 256, scale + 1, int16(256));
 			end if;
 			if keys(KEY_X) = '1' then
 				scale <= sel(scale > 1, scale - 1, int16(1));
+			end if;
+			if keys(KEY_F) = '1' then
+				rot_light.x <= sel(rot_light.x < 360, rot_light.x + 1, int16(1));
+			end if;
+			if keys(KEY_H) = '1' then
+				rot_light.x <= sel(rot_light.x > 0, rot_light.x - 1, int16(360));
+			end if;
+			if keys(KEY_T) = '1' then
+				rot_light.y <= sel(rot_light.y < 360, rot_light.y + 1, int16(1));
+			end if;
+			if keys(KEY_G) = '1' then
+				rot_light.y <= sel(rot_light.y > 0, rot_light.y - 1, int16(360));
 			end if;
 		end if;
 	end process;

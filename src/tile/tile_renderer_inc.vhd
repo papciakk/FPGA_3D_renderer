@@ -23,8 +23,8 @@ package body tile_renderer_inc is
 		variable scale_y : int32_t := vertex.y * scale;
 	begin
 		return (
-			x => int16(shift_right(scale_x, 8)),
-			y => int16(shift_right(scale_y, 8)),
+			x => int16(scale_x / 256),
+			y => int16(scale_y / 256),
 			z => vertex.z
 		);
 	end function;
@@ -35,7 +35,7 @@ package body tile_renderer_inc is
 		return (
 			x => shift_right(vertex.x, 7) + HALF_FULLSCREEN_RES_X,
 			y => shift_right(vertex.y, 7) + HALF_FULLSCREEN_RES_Y,
-			z => shift_right(vertex.z, 4)
+			z => vertex.z
 		);
 	end function;
 

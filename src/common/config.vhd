@@ -8,20 +8,22 @@ package config is
 
 	constant num_processes : integer := 1;
 
-	constant ENABLE_LIGHTING : boolean := true;
-
 	constant MODE_320_240 : boolean := false;
 
+	constant TILE_RES_X : integer := 1;
+	constant TILE_RES_Y : integer := 1;
+	
+	----------------------------------------------------------------
+	
+	constant FULLSCREEN_RES_X : integer := sel(MODE_320_240, 320, 640);
+	constant FULLSCREEN_RES_Y : integer := sel(MODE_320_240, 240, 480);
+	
 	constant MAIN_CLK_MHZ : integer := 50;
 
 	constant BITS_PER_PIXEL : integer := 24;
 	constant DEPTH_BITS     : integer := 16;
-
-	constant TILE_RES_X : integer := 64;
-	constant TILE_RES_Y : integer := 96;
-
-	constant FULLSCREEN_RES_X : integer := sel(MODE_320_240, 320, 640);
-	constant FULLSCREEN_RES_Y : integer := sel(MODE_320_240, 240, 480);
+	
+	constant ENABLE_LIGHTING : boolean := true;
 	
 	----------------------------------------------------------------
 

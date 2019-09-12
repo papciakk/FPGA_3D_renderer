@@ -85,19 +85,13 @@ architecture behavioral of snf0 is
 	signal framebuffer_initialized                       : std_logic := '0';
 	signal fb_disp_window_rect, fb_disp_window_rect_next : rect_t;
 
-	signal measurment0_run   : std_logic := '0';
-	signal measurment0_value : uint32_t;
-	signal measurment0_done  : std_logic;
-	signal measurment_send   : std_logic := '0';
-	signal printf0_val       : integer;
-
 	-----------------------------------------
 
-	signal input_clk                 : std_logic := '0';
-	signal key                       : keys_t;
-	signal rot, rot_next             : point3d_t;
-	signal rot_light, rot_light_next : point3d_t;
-	signal scale                     : int16_t;
+	signal input_clk : std_logic := '0';
+	signal key       : keys_t;
+	signal rot       : point3d_t;
+	signal rot_light : point2d_t;
+	signal scale     : int16_t;
 
 	signal tile_num_next : integer;
 
@@ -131,7 +125,6 @@ architecture behavioral of snf0 is
 	signal start_mesh_renderer, start_mesh_renderer_next : std_logic := '0';
 
 	signal request_counter, request_counter_next : integer;
-	signal scale_next                            : int16_t;
 
 	signal measurement_step        : std_logic;
 	signal measurement_value       : integer;
@@ -235,27 +228,29 @@ begin
 			val      => measurement_value
 		);
 
-	--	keyboard_inputs_0 : entity work.keyboard_inputs
-	--		port map(
-	--			clk      => CLK_50,
-	--			rst      => rst,
-	--			ps2_clk  => PS2_CLK,
-	--			ps2_data => PS2_DATA,
-	--			keys      => key
-	--		);
-	--
-	--	input_handler_0 : entity work.input_handler
-	--		generic map(
-	--			rot_init   => point3d(0, 0, 0),
-	--			scale_init => int16(1)
-	--		)
-	--		port map(
-	--			input_clk => input_clk,
-	--			rst       => rst,
-	--			keys       => key,
-	--			rot       => rot,
-	--			scale     => scale
-	--		);
+	keyboard_inputs_0 : entity work.keyboard_inputs
+		port map(
+			clk      => CLK_50,
+			rst      => rst,
+			ps2_clk  => PS2_CLK,
+			ps2_data => PS2_DATA,
+			keys     => key
+		);
+
+	input_handler_0 : entity work.input_handler
+		generic map(
+			rot_init       => point3d(0, 0, 0),
+			rot_light_init => point2d(0, 0),
+			scale_init     => int16(256)
+		)
+		port map(
+			input_clk => input_clk,
+			rst       => rst,
+			keys      => key,
+			rot       => rot,
+			rot_light => rot_light,
+			scale     => scale
+		);
 
 	LED(0) <= rst;
 	LED(1) <= led_blink;
@@ -340,6 +335,7 @@ begin
 				end if;
 
 			when st_screen_write =>
+				input_clk <= '0';
 				fb_disp_start_write_next    <= '1';
 				screen_ready_p_next         <= (others => '0');
 				screen_request_ready_p_next <= (others => '0');
@@ -368,9 +364,6 @@ begin
 			tile_num_ready_p     <= tile_num_ready_p_next;
 			tile_num_out_p       <= tile_num_out_p_next;
 			state_tile           <= state_tile_next;
-			rot                  <= rot_next;
-			rot_light            <= rot_light_next;
-			scale                <= scale_next;
 			tile_request_counter <= tile_request_counter_next;
 		end if;
 	end process;
@@ -381,9 +374,6 @@ begin
 		tile_num_ready_p_next     <= tile_num_ready_p;
 		tile_num_out_p_next       <= tile_num_out_p;
 		state_tile_next           <= state_tile;
-		rot_next                  <= rot;
-		rot_light_next            <= rot_light;
-		scale_next                <= scale;
 		tile_request_counter_next <= tile_request_counter;
 		case state_tile is
 
@@ -392,9 +382,6 @@ begin
 				tile_num_next         <= 0;
 				tile_num_ready_p_next <= (others => '0');
 				tile_num_out_p_next   <= (others => 0);
-				rot_next              <= point3d(0, 0, 0);
-				rot_light_next        <= point3d(0, 0, 0);
-				scale_next            <= int16(1);
 				state_tile_next       <= st_idle;
 
 			when st_idle =>
@@ -435,15 +422,7 @@ begin
 				else
 					if or_reduce(working_p) then
 						state_tile_next <= st_wait_for_workers;
-					else
-						rot_next        <= point3d(0, 0, 0);
-						scale_next      <= int16(255);
-						--						rot_light_next.y <= sel(rot_light.y = 359, int16(0), rot_light.y + 1);
-						--						rot_light_next.x <= sel(rot_light.x = 359, int16(0), rot_light.x + 1);
-						rot_next.x      <= sel(rot.x = 359, int16(0), rot.x + 1);
-						--						rot_next.y       <= sel(rot.y = 359, int16(0), rot.y + 1);
-						--						rot_next.z       <= sel(rot.z = 359, int16(0), rot.z + 1);
-						--						scale_next       <= sel(scale = 255, int16(1), scale + 1);
+					else						
 						tile_num_next   <= 0;
 						state_tile_next <= st_idle;
 

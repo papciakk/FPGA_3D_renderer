@@ -56,6 +56,14 @@ begin
 					keys(KEY_Z) <= not break_code;
 				when X"22" =>
 					keys(KEY_X) <= not break_code;
+				when X"2C" =>
+					keys(KEY_T) <= not break_code;
+				when X"34" =>
+					keys(KEY_G) <= not break_code;
+				when X"2B" =>
+					keys(KEY_F) <= not break_code;
+				when X"33" =>
+					keys(KEY_H) <= not break_code;
 				when X"F0" =>
 					break_code <= '1';
 				when others =>

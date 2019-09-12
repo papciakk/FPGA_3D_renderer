@@ -28,7 +28,7 @@ entity tile_renderer is
 		depth_wren_out     : out std_logic;
 		-----------------------------------
 		rot_in             : in  point3d_t;
-		rot_light_in       : in  point3d_t;
+		rot_light_in       : in  point2d_t;
 		scale_in           : in  int16_t
 	);
 end entity;
