@@ -233,6 +233,7 @@ set_global_assignment -name ROUTER_TIMING_OPTIMIZATION_LEVEL MAXIMUM
 set_global_assignment -name PHYSICAL_SYNTHESIS_REGISTER_DUPLICATION ON
 set_global_assignment -name PHYSICAL_SYNTHESIS_COMBO_LOGIC ON
 set_global_assignment -name ENABLE_BENEFICIAL_SKEW_OPTIMIZATION OFF
+set_global_assignment -name VHDL_FILE src/input/debouncer.vhd
 set_global_assignment -name VHDL_FILE src/debug/continous_measurement.vhd
 set_global_assignment -name VHDL_FILE src/tile/tile_renderer_inc.vhd
 set_global_assignment -name VHDL_FILE src/misc/rotation_helper.vhd

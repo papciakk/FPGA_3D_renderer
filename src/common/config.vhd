@@ -10,8 +10,8 @@ package config is
 
 	constant MODE_320_240 : boolean := false;
 
-	constant TILE_RES_X : integer := 1;
-	constant TILE_RES_Y : integer := 1;
+	constant TILE_RES_X : integer := 160;
+	constant TILE_RES_Y : integer := 60;
 	
 	----------------------------------------------------------------
 	

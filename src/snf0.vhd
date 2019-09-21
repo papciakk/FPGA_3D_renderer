@@ -335,7 +335,6 @@ begin
 				end if;
 
 			when st_screen_write =>
-				input_clk <= '0';
 				fb_disp_start_write_next    <= '1';
 				screen_ready_p_next         <= (others => '0');
 				screen_request_ready_p_next <= (others => '0');
@@ -383,6 +382,7 @@ begin
 				tile_num_ready_p_next <= (others => '0');
 				tile_num_out_p_next   <= (others => 0);
 				state_tile_next       <= st_idle;
+				input_clk <= '0';
 
 			when st_idle =>
 				measurement_step          <= '0';
@@ -425,12 +425,13 @@ begin
 					else						
 						tile_num_next   <= 0;
 						state_tile_next <= st_idle;
-
+						input_clk <= '1';
 						measurement_step <= '1';
 					end if;
 				end if;
 
 			when st_wait_for_workers =>
+				input_clk <= '0';
 				measurement_step <= '0';
 				if or_reduce(working_p) then
 					state_tile_next <= st_wait_for_workers;
