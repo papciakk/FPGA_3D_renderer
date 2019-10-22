@@ -4,7 +4,7 @@ use ieee.numeric_std.all;
 
 entity debouncer is
   generic(
-    counter_size : natural := 9
+    counter_size : natural := 10
   );
 
   port(

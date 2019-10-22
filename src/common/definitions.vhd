@@ -106,6 +106,7 @@ package definitions is
 	function sel(cond : boolean; opt1 : unsigned; opt2 : unsigned) return unsigned;
 	function sel(cond : boolean; opt1 : signed; opt2 : signed) return signed;
 	function sel(cond : boolean; opt1 : integer; opt2 : integer) return integer;
+	function sel(cond : boolean; opt1 : color_t; opt2 : color_t) return color_t;
 
 end package definitions;
 
@@ -269,6 +270,15 @@ package body definitions is
 	end function;
 
 	function sel(cond : boolean; opt1 : integer; opt2 : integer) return integer is
+	begin
+		if cond then
+			return opt1;
+		else
+			return opt2;
+		end if;
+	end function;
+	
+	function sel(cond : boolean; opt1 : color_t; opt2 : color_t) return color_t is
 	begin
 		if cond then
 			return opt1;

@@ -5,6 +5,7 @@ use work.stdint.all;
 use work.definitions.all;
 use work.config.all;
 use work.tiles.all;
+use work.digits.all;
 
 entity mesh_renderer is
 	port(
@@ -30,7 +31,9 @@ entity mesh_renderer is
 		get_rect                : out rect_t;
 		task_request_out        : out std_logic;
 		task_ready_in           : in  std_logic;
-		task_tile_num_in        : in  integer
+		task_tile_num_in        : in  integer;
+		--------------------------------------------
+		overlay_num             : in  num_array_t
 	);
 end entity mesh_renderer;
 
@@ -42,7 +45,8 @@ architecture rtl of mesh_renderer is
 	signal state, state_next : state_type := st_start;
 
 	type drawing_state_type is (
-		st_start, st_wait_for_start, st_tilegen_clear, st_tilegen_clear_wait, st_start_generate_tile, st_generate_tile_wait, st_wait_for_screen_request, st_wait_for_copy_to_screen, st_get_tile_wait
+		st_start, st_wait_for_start, st_tilegen_clear, st_tilegen_clear_wait, st_start_generate_tile, st_generate_tile_wait, st_wait_for_screen_request, st_wait_for_copy_to_screen, st_get_tile_wait,
+		st_show_overlay, st_show_overlay_loop
 	);
 	signal state_drawing : drawing_state_type := st_start;
 
@@ -54,13 +58,13 @@ architecture rtl of mesh_renderer is
 	signal current_tile_rect  : rect_t;
 	signal tilegen_ready_next : std_logic;
 
-	signal posx       : uint16_t;
-	signal posy       : uint16_t;
-	signal put_pixel  : std_logic;
-	signal color      : color_t;
-	signal depth_in   : int16_t;
-	signal depth_out  : int16_t;
-	signal depth_wren : std_logic;
+	signal posx, posx_draw, posx_overlay, posx_overlay_cnt, posx_overlay_next, posx_overlay_cnt_next : uint16_t;
+	signal posy, posy_draw, posy_overlay, posy_overlay_cnt, posy_overlay_next, posy_overlay_cnt_next : uint16_t;
+	signal put_pixel, put_pixel_draw, put_pixel_overlay, put_pixel_overlay_next                      : std_logic;
+	signal color, color_draw, color_overlay, color_overlay_next                                      : color_t;
+	signal depth_in                                                                                  : int16_t;
+	signal depth_out                                                                                 : int16_t;
+	signal depth_wren                                                                                : std_logic;
 
 	signal tilegen_start      : std_logic := '0';
 	signal tilegen_ready      : std_logic;
@@ -81,8 +85,16 @@ architecture rtl of mesh_renderer is
 	signal current_tile_next           : integer;
 	signal current_tile_rect_attr_next : rect_attr_t;
 	signal working_out_next            : std_logic;
+
+	signal show_overlay                                              : std_logic := '0';
+	signal overlay_show_second_digit, overlay_show_second_digit_next : std_logic := '0';
 begin
 	get_rect <= current_tile_rect;
+
+	posx      <= posx_draw when show_overlay = '0' else posx_overlay;
+	posy      <= posy_draw when show_overlay = '0' else posy_overlay;
+	put_pixel <= put_pixel_draw when show_overlay = '0' else put_pixel_overlay;
+	color     <= color_draw when show_overlay = '0' else color_overlay;
 
 	tile_buffer0 : entity work.tile_buffer
 		port map(
@@ -115,8 +127,8 @@ begin
 			--------------------------------------------
 			posx_out           => untransposed_posx,
 			posy_out           => untransposed_posy,
-			put_pixel_out      => put_pixel,
-			pixel_color_out    => color,
+			put_pixel_out      => put_pixel_draw,
+			pixel_color_out    => color_draw,
 			--------------------------------------------
 			start_in           => start_rendering_tile,
 			ready_out          => tile_rendered,
@@ -132,8 +144,8 @@ begin
 			scale_in           => scale_in
 		);
 
-	posx <= untransposed_posx - current_tile_rect.x0;
-	posy <= untransposed_posy - current_tile_rect.y0;
+	posx_draw <= untransposed_posx - current_tile_rect.x0;
+	posy_draw <= untransposed_posy - current_tile_rect.y0;
 
 	process(clk, rst) is
 	begin
@@ -184,6 +196,8 @@ begin
 		end case;
 	end process;
 
+	show_overlay <= '1' when current_tile = 0 else '0';
+
 	process(clk, rst) is
 	begin
 		if rst then
@@ -199,6 +213,14 @@ begin
 			current_tile           <= current_tile_next;
 			current_tile_rect_attr <= current_tile_rect_attr_next;
 			working_out            <= working_out_next;
+
+			posx_overlay              <= posx_overlay_next;
+			posy_overlay              <= posy_overlay_next;
+			posx_overlay_cnt          <= posx_overlay_cnt_next;
+			posy_overlay_cnt          <= posy_overlay_cnt_next;
+			color_overlay             <= color_overlay_next;
+			put_pixel_overlay         <= put_pixel_overlay_next;
+			overlay_show_second_digit <= overlay_show_second_digit_next;
 		end if;
 	end process;
 
@@ -214,6 +236,14 @@ begin
 		current_tile_next           <= current_tile;
 		current_tile_rect_attr_next <= current_tile_rect_attr;
 		working_out_next            <= working_out;
+
+		posx_overlay_next              <= posx_overlay;
+		posy_overlay_next              <= posy_overlay;
+		posx_overlay_cnt_next          <= posx_overlay_cnt;
+		posy_overlay_cnt_next          <= posy_overlay_cnt;
+		color_overlay_next             <= color_overlay;
+		put_pixel_overlay_next         <= put_pixel_overlay;
+		overlay_show_second_digit_next <= overlay_show_second_digit;
 
 		case state_drawing is
 
@@ -262,10 +292,67 @@ begin
 			when st_generate_tile_wait =>
 				tilegen_start_next <= '0';
 				if tilegen_ready then
-					screen_request_out_next <= '1';
-					state_drawing_next      <= st_wait_for_screen_request;
+					if show_overlay then
+						state_drawing_next <= st_show_overlay;
+					else
+						screen_request_out_next <= '1';
+						state_drawing_next      <= st_wait_for_screen_request;
+					end if;
 				else
 					state_drawing_next <= st_generate_tile_wait;
+				end if;
+
+			when st_show_overlay =>
+				posx_overlay_next      <= (others => '0');
+				posy_overlay_next      <= (others => '0');
+				posx_overlay_cnt_next  <= (others => '0');
+				posy_overlay_cnt_next  <= (others => '0');
+				color_overlay_next     <= (r => slv8(255), others => slv8(0));
+				put_pixel_overlay_next <= '0';
+
+				state_drawing_next <= st_show_overlay_loop;
+
+			when st_show_overlay_loop =>
+				put_pixel_overlay_next <= '0';
+
+				if posy_overlay_cnt < 16 then
+					if posx_overlay_cnt < 16 then
+						if overlay_show_second_digit then
+							posx_overlay_next <= posx_overlay_cnt + 8 + 16;
+						else
+							posx_overlay_next <= posx_overlay_cnt + 8;
+						end if;
+						posy_overlay_next     <= posy_overlay_cnt + 8;
+						
+						posx_overlay_cnt_next <= posx_overlay_cnt + 1;
+
+						if overlay_show_second_digit then
+							if digit_lut(to_integer(overlay_num(0)))(to_integer(posy_overlay_cnt * 16 + posx_overlay_cnt)) = '1' then
+								put_pixel_overlay_next <= '1';
+							end if;
+						else
+							if digit_lut(to_integer(overlay_num(1)))(to_integer(posy_overlay_cnt * 16 + posx_overlay_cnt)) = '1' then
+								put_pixel_overlay_next <= '1';
+							end if;
+						end if;
+
+						state_drawing_next <= st_show_overlay_loop;
+					else
+						posx_overlay_cnt_next <= (others => '0');
+						posy_overlay_cnt_next <= posy_overlay_cnt + 1;
+
+						state_drawing_next <= st_show_overlay_loop;
+					end if;
+				else
+					screen_request_out_next <= '1';
+					if overlay_show_second_digit = '0' then
+						overlay_show_second_digit_next <= '1';
+						state_drawing_next             <= st_show_overlay;
+					else
+						overlay_show_second_digit_next <= '0';
+						state_drawing_next             <= st_wait_for_screen_request;
+					end if;
+
 				end if;
 
 			when st_wait_for_screen_request =>

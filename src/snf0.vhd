@@ -9,6 +9,7 @@ use work.definitions.all;
 use work.config.all;
 use work.keyboard_inc.all;
 use work.tiles.all;
+use work.digits.all;
 
 entity snf0 is
 	port(
@@ -120,7 +121,7 @@ architecture behavioral of snf0 is
 	signal working_p                                                           : std_logic_vector(num_processes - 1 downto 0);
 
 	signal tile_request_counter, tile_request_counter_next : integer             := 0;
-	signal bg_colors_p                                     : color_arr_t(0 to 5) := (COLOR_BLUE, COLOR_GREEN, COLOR_RED, COLOR_YELLOW, COLOR_MAGENTA, COLOR_CYAN);
+	constant bg_colors_p                                   : color_arr_t(0 to 5) := (COLOR_BLUE, COLOR_GREEN, COLOR_RED, COLOR_YELLOW, COLOR_MAGENTA, COLOR_CYAN);
 
 	signal start_mesh_renderer, start_mesh_renderer_next : std_logic := '0';
 
@@ -129,6 +130,8 @@ architecture behavioral of snf0 is
 	signal measurement_step        : std_logic;
 	signal measurement_value       : integer;
 	signal measurement_value_ready : std_logic;
+
+	signal fps_nums : num_array_t;
 
 begin
 
@@ -146,30 +149,32 @@ begin
 	begin
 		mesh_renderer : entity work.mesh_renderer
 			port map(
-				clk                     => main_clk,
-				screen_clk              => display_clk,
-				rst                     => rst,
+				clk => main_clk,
+				screen_clk => display_clk,
+				rst => rst,
 				-------------------------------
-				start_in                => start_mesh_renderer,
-				get_rect                => rects_p(i),
+				start_in => start_mesh_renderer,
+				working_out => working_p(i),
 				-------------------------------
-				bg_color_in             => bg_colors_p(i),
+				rot_in => rot,
+				rot_light_in => rot_light,
+				scale_in => scale,
 				-------------------------------
-				screen_request_out      => screen_request_p(i),
+				bg_color_in => sel(SHOW_PROCESSES, bg_colors_p(i), BACKGROUND_COLOR),
+				-------------------------------
+				screen_request_out => screen_request_p(i),
 				screen_request_ready_in => screen_request_ready_p(i),
-				screen_ready_in         => screen_ready_p(i),
-				screen_posx_in          => posx_out,
-				screen_posy_in          => posy_out,
-				screen_pixel_color_out  => color_in_p(i),
+				screen_ready_in => screen_ready_p(i),
+				screen_posx_in => posx_out,
+				screen_posy_in => posy_out,
+				screen_pixel_color_out => color_in_p(i),
+				get_rect => rects_p(i),
 				-------------------------------
-				task_request_out        => tile_num_request_p(i),
-				task_ready_in           => tile_num_ready_p(i),
-				task_tile_num_in        => tile_num_out_p(i),
-				working_out             => working_p(i),
+				task_request_out => tile_num_request_p(i),
+				task_ready_in => tile_num_ready_p(i),
+				task_tile_num_in => tile_num_out_p(i),
 				-------------------------------
-				rot_in                  => rot,
-				rot_light_in            => rot_light,
-				scale_in                => scale
+				overlay_num => fps_nums
 			);
 	end generate;
 
@@ -244,12 +249,19 @@ begin
 			scale_init     => int16(256)
 		)
 		port map(
-			input_clk => input_clk,
-			rst       => rst,
-			keys      => key,
-			rot       => rot,
-			rot_light => rot_light,
-			scale     => scale
+			input_clk       => input_clk,
+			rst             => rst,
+			keys            => key,
+			rot             => rot,
+			rot_light       => rot_light,
+			scale           => scale,
+			last_frame_time => measurement_value
+		);
+
+	fps0 : entity work.fps
+		port map(
+			val  => measurement_value,
+			nums => fps_nums
 		);
 
 	LED(0) <= rst;
@@ -382,7 +394,7 @@ begin
 				tile_num_ready_p_next <= (others => '0');
 				tile_num_out_p_next   <= (others => 0);
 				state_tile_next       <= st_idle;
-				input_clk <= '0';
+				input_clk             <= '0';
 
 			when st_idle =>
 				measurement_step          <= '0';
@@ -422,16 +434,16 @@ begin
 				else
 					if or_reduce(working_p) then
 						state_tile_next <= st_wait_for_workers;
-					else						
-						tile_num_next   <= 0;
-						state_tile_next <= st_idle;
-						input_clk <= '1';
+					else
+						tile_num_next    <= 0;
+						state_tile_next  <= st_idle;
+						input_clk        <= '1';
 						measurement_step <= '1';
 					end if;
 				end if;
 
 			when st_wait_for_workers =>
-				input_clk <= '0';
+				input_clk        <= '0';
 				measurement_step <= '0';
 				if or_reduce(working_p) then
 					state_tile_next <= st_wait_for_workers;
